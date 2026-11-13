@@ -1,0 +1,14 @@
+{
+  "id": "gum-hud",
+  "title": "GUM HUD",
+  "description": "Barra de combate experimental para o sistema GUM.",
+  "version": "0.1.0",
+  "compatibility": { "minimum": "13", "verified": "14" },
+  "relationships": { "systems": [{ "id": "gum", "type": "system", "compatibility": { "minimum": "1.6.2-beta" } }] },
+  "languages": [
+    { "lang": "pt-BR", "name": "Português (Brasil)", "path": "lang/pt-BR.json" },
+    { "lang": "en", "name": "English", "path": "lang/en.json" }
+  ],
+  "esmodules": ["scripts/hud.js"],
+  "styles": ["styles/hud.css"]
+}

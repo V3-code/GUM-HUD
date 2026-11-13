@@ -1,0 +1,17 @@
+{
+  "GUMHUD": {
+    "General": { "Close": "Fechar", "Expand": "Expandir", "Collapse": "Recolher", "ItemNotFound": "Item não encontrado" },
+    "Categories": { "Skills": "Perícias", "Spells": "Magias", "Powers": "Poderes", "Skill": "Perícia" },
+    "Combat": { "Title": "OPÇÕES DE COMBATE", "Empty": "Arraste equipamentos para os slots ou marque outras opções como favoritas.", "NoSkill": "Sem perícia", "UseMode": "Modo de uso", "Cost": "Custo", "FollowUpAbbrev": "Acomp.", "FragmentationAbbrev": "Frag." },
+    "Roll": { "RollItem": "Rolar {name}", "AttackItem": "Rolar ataque de {name}", "DamageItem": "Rolar dano de {name}", "AttackMode": "Rolar ataque: {item} · {mode}", "DamageMode": "Rolar dano: {item} · {mode}", "SkillLevel": "ROLAR NH", "Attack": "ATAQUE", "Damage": "ROLAR DANO" },
+    "Defense": { "Title": "DEFESAS ATIVAS", "Active": "Defesa ativa", "Defense": "Defesa", "Dodge": "Esquiva", "Parry": "Aparar", "Block": "Bloqueio", "Special": "Especial", "SpecialPlural": "Defesas especiais", "RollDodge": "Rolar Esquiva", "ParryOptions": "Opções de Aparar", "BlockOptions": "Opções de Bloqueio", "FixedValue": "Valor fixo", "SkillLevel": "NH", "HalfPlusThree": "NH/2 + 3" },
+    "Consumables": { "Title": "Consumíveis", "Count": "Consumíveis: {count}", "Charges": "Cargas", "Quantity": "Quantidade", "Use": "USAR", "UseItem": "Usar {name}" },
+    "Maneuvers": { "Title": "MANOBRAS", "SelectGroup": "Selecione um grupo nas configurações.", "FallbackName": "Manobra {number}", "All": "Todas as manobras" },
+    "Identity": { "QuickEquipment": "Equipamentos rápidos" },
+    "Slots": { "DropEquipment": "Arraste um equipamento da ficha", "RemoveShortcut": "Remover atalho", "WrongActor": "Arraste um equipamento deste personagem.", "CannotAdd": "Não foi possível adicionar o equipamento." },
+    "Notifications": { "NoCharges": "\"{name}\" não possui cargas restantes.", "NoQuantity": "\"{name}\" não possui quantidade suficiente para consumir.", "UsedCharges": "{name} usado. Cargas restantes: {remaining}{exhausted}.", "Exhausted": " (esgotado)", "ConsumedQuantity": "{name} consumido. Quantidade restante: {remaining}." },
+    "Settings": { "ManeuverGroup": { "Name": "Grupo de manobras", "Hint": "Nome ou ID de um grupo de exclusão configurado no GUM." }, "HideHotbar": { "Name": "Ocultar hotbar com HUD ativa", "Hint": "A hotbar padrão volta ao fechar a HUD." }, "EquipmentSlots": { "Name": "Equipamentos rápidos do HUD" }, "ExpandedRegions": { "Name": "Regiões expandidas do HUD" } },
+    "Keybindings": { "Toggle": "Abrir HUD do token controlado" },
+    "Permissions": { "OwnerRequired": "Você precisa ser proprietário do personagem para abrir seu HUD." }
+  }
+}
