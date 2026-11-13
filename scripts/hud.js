@@ -66,15 +66,25 @@ function activeManeuverUuids(actor) {
     .filter(uuid => uuid && configured.has(uuid)));
 }
 
+function combatOptionEnabled(value) {
+  if (value === true || value === 1) return true;
+  return ["true", "1", "on"].includes(String(value ?? "").trim().toLocaleLowerCase());
+}
+
+function combatOptionManeuvers(config) {
+  const raw = config?.maneuver_uuids;
+  const values = Array.isArray(raw) ? raw : typeof raw === "string" ? raw.split(/\r?\n|,/) : [];
+  return [...new Set(values.map(value => String(value ?? "").trim()).filter(Boolean))];
+}
+
 function combatOptionsFor(actor) {
   const active = activeManeuverUuids(actor);
   if (!active.size) return [];
   return [...actor.items]
     .filter(item => {
-      if (item.type !== "gm_modifier" || item.system?.combat_option?.enabled !== true) return false;
-      const maneuvers = Array.isArray(item.system.combat_option.maneuver_uuids)
-        ? item.system.combat_option.maneuver_uuids.filter(Boolean)
-        : [];
+      const config = item.system?.combat_option;
+      if (item.type !== "gm_modifier" || !combatOptionEnabled(config?.enabled)) return false;
+      const maneuvers = combatOptionManeuvers(config);
       return !maneuvers.length || maneuvers.some(uuid => active.has(uuid));
     })
     .sort((a, b) => a.name.localeCompare(b.name, game.i18n.lang));
