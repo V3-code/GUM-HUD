@@ -7,6 +7,9 @@ let pinnedToken = null;
 let openSelection = null;
 let selectionActorUuid = null;
 let selectedCombatOptions = new Set();
+let combatOptionsPanelOpen = false;
+let combatOptionsPanelExpanded = false;
+let combatOptionsManeuverKey = "";
 const VISIBLE_MANEUVERS = 15;
 
 const escape = value => String(value ?? "").replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
@@ -216,15 +219,6 @@ function expandedMarkup(actor) {
       return `<div class="gum-hud-domino gum-hud-consumable-domino" data-preview-item="${escape(item.id)}" aria-label="${escape(item.name)}"><span class="gum-hud-mode-icon"><img src="${escape(item.img)}" alt=""></span><span class="gum-hud-mode-name" title="${escape(item.name)}"><strong>${escape(item.name)}</strong><small>${escape(state.label)}</small></span><span class="gum-hud-consumable-balance"><small>${escape(state.label)}</small><strong>${escape(state.display)}</strong></span><button type="button" class="gum-hud-mode-action gum-hud-consumable-use" data-consume-item="${escape(item.id)}" ${state.available <= 0 ? "disabled" : ""} title="${escape(format("Consumables.UseItem", { name: item.name }, `Usar ${item.name}`))}"><small>${localize("Consumables.Use", "USAR")}</small><i class="fas fa-hand-pointer" aria-hidden="true"></i></button></div>`;
     }).join("");
   }
-  if (openSelection.kind === "combatOptions") {
-    return combatOptionsFor(actor).map(item => {
-      const selected = selectedCombatOptions.has(item.id);
-      const mode = item.system?.combat_option?.selection_mode === "cumulative"
-        ? localize("CombatOptions.Cumulative", "Cumulativa")
-        : localize("CombatOptions.Exclusive", "Exclusiva");
-      return `<button type="button" class="gum-hud-domino gum-hud-combat-option-domino ${selected ? "is-selected" : ""}" data-combat-option="${escape(item.id)}" data-preview-item="${escape(item.id)}" aria-pressed="${selected}" title="${escape(item.name)}"><span class="gum-hud-mode-icon"><img src="${escape(item.img)}" alt=""></span><span class="gum-hud-mode-name"><strong>${escape(item.name)}</strong><small>${escape(mode)}</small></span><span class="gum-hud-combat-option-value">${escape(combatOptionValue(item))}</span><i class="fas ${selected ? "fa-check-circle" : "fa-circle"}" aria-hidden="true"></i></button>`;
-    }).join("");
-  }
   if (openSelection.kind === "category") return categoryMarkup(actor, openSelection.key);
   const item = actor.items.get(openSelection.key);
   if (!item) return "";
@@ -257,6 +251,36 @@ function regionChrome(label, key, expandable) {
   return `<header><button type="button" class="gum-hud-region-toggle" data-toggle-region="${key}" aria-expanded="${expanded}" title="${escape(action)} ${escape(label.toLocaleLowerCase())}"><span>${label}</span><i class="fas fa-caret-${expanded ? "down" : "up"}" aria-hidden="true"></i></button></header>`;
 }
 
+function maneuverChrome(label, expandable, optionCount) {
+  const expanded = regionIsExpanded("maneuvers");
+  const regionAction = expanded ? localize("General.Collapse", "Recolher") : localize("General.Expand", "Expandir");
+  const regionControl = expandable
+    ? `<button type="button" class="gum-hud-region-toggle" data-toggle-region="maneuvers" aria-expanded="${expanded}" title="${escape(regionAction)} ${escape(label.toLocaleLowerCase())}"><span>${label}</span><i class="fas fa-caret-${expanded ? "down" : "up"}" aria-hidden="true"></i></button>`
+    : `<span>${label}</span>`;
+  const optionsControl = optionCount
+    ? `<button type="button" class="gum-hud-combat-options-toggle ${combatOptionsPanelOpen ? "is-selected" : ""}" data-toggle-combat-options aria-expanded="${combatOptionsPanelOpen}" title="${escape(combatOptionsPanelOpen ? localize("CombatOptions.Collapse", "Recolher opções de golpe") : localize("CombatOptions.Expand", "Expandir opções de golpe"))}"><i class="fas fa-crosshairs" aria-hidden="true"></i><b>${selectedCombatOptions.size}/${optionCount}</b><i class="fas fa-caret-${combatOptionsPanelOpen ? "down" : "up"}" aria-hidden="true"></i></button>`
+    : "";
+  return `<header class="gum-hud-maneuver-footer"><div>${regionControl}${optionsControl}</div></header>`;
+}
+
+function combatOptionsPanelMarkup(options) {
+  if (!options.length) return "";
+  const cards = options.map(item => {
+    const selected = selectedCombatOptions.has(item.id);
+    const cumulative = item.system?.combat_option?.selection_mode === "cumulative";
+    const mode = cumulative ? localize("CombatOptions.Cumulative", "Cumulativa") : localize("CombatOptions.Exclusive", "Exclusiva");
+    const indicator = cumulative
+      ? (selected ? "fa-check-square" : "fa-square")
+      : (selected ? "fa-check-circle" : "fa-circle");
+    return `<button type="button" class="gum-hud-combat-option-mini ${selected ? "is-selected" : ""}" data-combat-option="${escape(item.id)}" data-preview-item="${escape(item.id)}" aria-pressed="${selected}" title="${escape(item.name)} · ${escape(mode)} · ${escape(combatOptionValue(item))}"><img src="${escape(item.img)}" alt=""><span><strong>${escape(item.name)}</strong><small>${escape(combatOptionValue(item))}</small></span><i class="fas ${indicator}" aria-hidden="true"></i></button>`;
+  }).join("");
+  const hiddenCount = Math.max(0, options.length - 4);
+  const more = hiddenCount
+    ? `<button type="button" class="gum-hud-combat-options-more" data-expand-combat-options aria-expanded="${combatOptionsPanelExpanded}">${combatOptionsPanelExpanded ? localize("CombatOptions.ShowLess", "Mostrar menos") : format("CombatOptions.ShowMore", { count: hiddenCount }, `+${hiddenCount} opções`)}</button>`
+    : "";
+  return `<aside class="gum-hud-combat-options-panel ${combatOptionsPanelOpen ? "is-open" : ""} ${combatOptionsPanelExpanded ? "is-expanded" : ""}" aria-label="${escape(localize("CombatOptions.StrikeOptions", "Opções de golpe"))}"><div class="gum-hud-combat-options-heading"><i class="fas fa-crosshairs" aria-hidden="true"></i><span>${localize("CombatOptions.StrikeOptions", "Opções de golpe")}</span></div><div class="gum-hud-combat-options-grid">${cards}</div>${more}</aside>`;
+}
+
 function fitToFoundry(root) {
   const sidebar = document.querySelector("#sidebar");
   const chat = document.querySelector("#chat-form");
@@ -277,13 +301,21 @@ function render() {
   if (token && !ownsActor(token.actor)) {
     pinnedToken = null;
     openSelection = null;
+    combatOptionsPanelOpen = false;
   }
   const allowedToken = token && ownsActor(token.actor) ? token : null;
   document.body.classList.toggle("gum-hud-hide-hotbar", Boolean(allowedToken && api() && game.settings.get(MODULE, "hideHotbar")));
   if (!allowedToken || !api()) return;
   const tokenForHud = allowedToken;
   const actor = tokenForHud.actor;
-  if (selectionActorUuid !== actor.uuid) { openSelection = null; selectedCombatOptions = new Set(); selectionActorUuid = actor.uuid; }
+  if (selectionActorUuid !== actor.uuid) {
+    openSelection = null;
+    selectedCombatOptions = new Set();
+    combatOptionsPanelOpen = false;
+    combatOptionsPanelExpanded = false;
+    combatOptionsManeuverKey = "";
+    selectionActorUuid = actor.uuid;
+  }
   const group = selectedGroup();
   const active = new Set([...actor.effects].filter(effect => effect.flags?.gum?.stackingDomain === "direct").map(effect => effect.flags?.gum?.effectUuid));
   const combatItems = [...equipmentFor(actor), ...favorites(actor).filter(item => item.type !== "equipment" && !CATEGORY_TYPES.includes(item.type))];
@@ -293,14 +325,23 @@ function render() {
   const combatOptions = combatOptionsFor(actor);
   const availableCombatOptionIds = new Set(combatOptions.map(item => item.id));
   for (const itemId of [...selectedCombatOptions]) if (!availableCombatOptionIds.has(itemId)) selectedCombatOptions.delete(itemId);
+  const maneuverKey = [...activeManeuverUuids(actor)].sort().join("|");
+  if (!combatOptions.length) {
+    combatOptionsPanelOpen = false;
+    combatOptionsPanelExpanded = false;
+    combatOptionsManeuverKey = maneuverKey;
+  } else if (maneuverKey !== combatOptionsManeuverKey) {
+    combatOptionsManeuverKey = maneuverKey;
+    combatOptionsPanelOpen = true;
+    combatOptionsPanelExpanded = false;
+  }
   const visibleCategories = CATEGORY_TYPES.filter(type => groupedItems[type].length);
   const categoryCards = visibleCategories.map(type => {
     const label = categoryName(type);
     const selected = openSelection?.kind === "category" && openSelection.key === type;
     return `<button data-category="${type}" class="gum-hud-card gum-hud-category ${selected ? "is-selected" : ""}" aria-expanded="${selected}" title="${label}: ${groupedItems[type].length}"><img src="${categoryIcons[type]}" alt=""><span>${label}</span><b>${groupedItems[type].length}</b></button>`;
   }).join("");
-  const combatOptionCard = combatOptions.length ? `<button data-combat-options class="gum-hud-card gum-hud-category gum-hud-combat-options-card ${openSelection?.kind === "combatOptions" ? "is-selected" : ""}" aria-expanded="${openSelection?.kind === "combatOptions"}" title="${escape(format("CombatOptions.Count", { count: combatOptions.length }, `Opções de golpe: ${combatOptions.length}`))}"><i class="fas fa-crosshairs" aria-hidden="true"></i><span>${localize("CombatOptions.Title", "Opções")}</span><b>${selectedCombatOptions.size || combatOptions.length}</b></button>` : "";
-  const itemCards = combatItems.map(item => `<button data-item="${escape(item.id)}" class="gum-hud-card ${openSelection?.kind === "item" && openSelection.key === item.id ? "is-selected" : ""}" aria-expanded="${openSelection?.kind === "item" && openSelection.key === item.id}" title="${escape(item.name)}"><img src="${escape(item.img)}" alt=""><span>${escape(item.name)}</span></button>`).join("") + categoryCards + combatOptionCard;
+  const itemCards = combatItems.map(item => `<button data-item="${escape(item.id)}" class="gum-hud-card ${openSelection?.kind === "item" && openSelection.key === item.id ? "is-selected" : ""}" aria-expanded="${openSelection?.kind === "item" && openSelection.key === item.id}" title="${escape(item.name)}"><img src="${escape(item.img)}" alt=""><span>${escape(item.name)}</span></button>`).join("") + categoryCards;
   const assigned = loadoutFor(actor);
   const equipmentSlots = Array.from({ length: 5 }, (_, index) => {
     const item = actor.items.get(assigned[index]);
@@ -320,7 +361,7 @@ function render() {
   const maneuverCardCount = visibleIndices.length + (allManeuvers.length > 16 ? 1 : 0);
   const maneuverColumns = Math.min(4, Math.max(1, maneuverCardCount));
   const maneuverExpandable = maneuverCardCount > maneuverColumns * 3;
-  const combatCardCount = combatItems.length + visibleCategories.length + (combatOptions.length ? 1 : 0);
+  const combatCardCount = combatItems.length + visibleCategories.length;
   const combatColumns = Math.min(4, Math.max(1, combatCardCount));
   const combatExpandable = combatCardCount > combatColumns;
   const hp = actor.system?.attributes?.hp || {}, fp = actor.system?.attributes?.fp || {};
@@ -330,11 +371,10 @@ function render() {
   root.style.setProperty("--combat-columns", combatColumns);
   const consumablesLabel = localize("Consumables.Title", "Consumíveis");
   const consumableRegion = consumables.length ? `<div class="gum-hud-region gum-hud-consumable-region">${regionChrome(consumablesLabel.toLocaleUpperCase(game.i18n.lang), "consumables", false)}<div class="gum-hud-consumables"><button class="gum-hud-card gum-hud-consumable-card ${openSelection?.kind === "consumables" ? "is-selected" : ""}" data-consumables aria-expanded="${openSelection?.kind === "consumables"}" title="${escape(format("Consumables.Count", { count: consumables.length }, `${consumablesLabel}: ${consumables.length}`))}"><img src="icons/containers/bags/pack-leather-white-tan.webp" alt=""></button></div><div class="gum-hud-expanded"></div></div>` : "";
-  root.innerHTML = `<div class="gum-hud-region gum-hud-identity-region gum-hud-summary"><div class="gum-hud-loadout" aria-label="${escape(localize("Identity.QuickEquipment", "Equipamentos rápidos"))}">${equipmentSlots}</div><img src="${escape(tokenForHud.document.texture?.src || actor.img)}" alt=""><div class="gum-hud-summary-info"><strong>${escape(actor.name)}</strong><small>HP ${escape(hp.value ?? hp.current ?? "—")} · FP ${escape(fp.value ?? fp.current ?? "—")}</small></div><button data-close title="${escape(localize("General.Close", "Fechar"))}">×</button></div><div class="gum-hud-region gum-hud-maneuver-region ${regionIsExpanded("maneuvers") ? "is-expanded" : ""}">${regionChrome(localize("Maneuvers.Title", "MANOBRAS"), "maneuvers", maneuverExpandable)}<div class="gum-hud-maneuvers">${maneuvers || `<small>${localize("Maneuvers.SelectGroup", "Selecione um grupo nas configurações.")}</small>`}</div><div class="gum-hud-maneuver-palette" hidden>${extraManeuvers}</div></div><div class="gum-hud-region gum-hud-combat ${regionIsExpanded("combat") ? "is-expanded" : ""}">${regionChrome(localize("Combat.Title", "OPÇÕES DE COMBATE"), "combat", combatExpandable)}<div class="gum-hud-cards">${itemCards || `<small>${localize("Combat.Empty", "Arraste equipamentos para os slots ou marque outras opções como favoritas.")}</small>`}</div><div class="gum-hud-expanded"></div></div><div class="gum-hud-region gum-hud-defense-region">${regionChrome(localize("Defense.Title", "DEFESAS ATIVAS"), "defenses", false)}<div class="gum-hud-defenses"></div><div class="gum-hud-expanded"></div></div>${consumableRegion}`;
+  root.innerHTML = `<div class="gum-hud-region gum-hud-identity-region gum-hud-summary"><div class="gum-hud-loadout" aria-label="${escape(localize("Identity.QuickEquipment", "Equipamentos rápidos"))}">${equipmentSlots}</div><img src="${escape(tokenForHud.document.texture?.src || actor.img)}" alt=""><div class="gum-hud-summary-info"><strong>${escape(actor.name)}</strong><small>HP ${escape(hp.value ?? hp.current ?? "—")} · FP ${escape(fp.value ?? fp.current ?? "—")}</small></div><button data-close title="${escape(localize("General.Close", "Fechar"))}">×</button></div><div class="gum-hud-region gum-hud-maneuver-region ${regionIsExpanded("maneuvers") ? "is-expanded" : ""}">${maneuverChrome(localize("Maneuvers.Title", "MANOBRAS"), maneuverExpandable, combatOptions.length)}<div class="gum-hud-maneuvers">${maneuvers || `<small>${localize("Maneuvers.SelectGroup", "Selecione um grupo nas configurações.")}</small>`}</div><div class="gum-hud-maneuver-palette" hidden>${extraManeuvers}</div>${combatOptionsPanelMarkup(combatOptions)}</div><div class="gum-hud-region gum-hud-combat ${regionIsExpanded("combat") ? "is-expanded" : ""}">${regionChrome(localize("Combat.Title", "OPÇÕES DE COMBATE"), "combat", combatExpandable)}<div class="gum-hud-cards">${itemCards || `<small>${localize("Combat.Empty", "Arraste equipamentos para os slots ou marque outras opções como favoritas.")}</small>`}</div><div class="gum-hud-expanded"></div></div><div class="gum-hud-region gum-hud-defense-region">${regionChrome(localize("Defense.Title", "DEFESAS ATIVAS"), "defenses", false)}<div class="gum-hud-defenses"></div><div class="gum-hud-expanded"></div></div>${consumableRegion}`;
   if (openSelection?.kind === "defense" && !defenseEntries(actor, openSelection.key).length) openSelection = null;
   if (openSelection?.kind === "specialDefense" && !specialDefenses.length) openSelection = null;
   if (openSelection?.kind === "consumables" && !consumables.length) openSelection = null;
-  if (openSelection?.kind === "combatOptions" && !combatOptions.length) openSelection = null;
   const specialDefenseCard = specialDefenses.length ? `<button class="gum-hud-defense ${openSelection?.kind === "specialDefense" ? "is-selected" : ""}" data-special-defenses aria-expanded="${openSelection?.kind === "specialDefense"}" title="${escape(localize("Defense.SpecialPlural", "Defesas especiais"))}"><img src="modules/gum-hud/icons/special-defense.svg" alt=""><span>${localize("Defense.Special", "Especial")}</span></button>` : "";
   root.querySelector(".gum-hud-defenses").innerHTML = `<button class="gum-hud-defense" data-defense="dodge" title="${escape(localize("Defense.RollDodge", "Rolar Esquiva"))}"><img src="modules/gum-hud/icons/dodge.svg" alt=""><span>${localize("Defense.Dodge", "Esquiva")}</span><b>${escape(actor.system?.attributes?.dodge?.final ?? "—")}</b></button><button class="gum-hud-defense ${openSelection?.kind === "defense" && openSelection.key === "final_parry" ? "is-selected" : ""}" data-expand-defense="final_parry" aria-expanded="${openSelection?.kind === "defense" && openSelection.key === "final_parry"}" ${defenseEntries(actor, "final_parry").length ? "" : "disabled"} title="${escape(localize("Defense.ParryOptions", "Opções de Aparar"))}"><img src="modules/gum-hud/icons/parry.svg" alt=""><span>${localize("Defense.Parry", "Aparar")}</span></button><button class="gum-hud-defense ${openSelection?.kind === "defense" && openSelection.key === "final_block" ? "is-selected" : ""}" data-expand-defense="final_block" aria-expanded="${openSelection?.kind === "defense" && openSelection.key === "final_block"}" ${defenseEntries(actor, "final_block").length ? "" : "disabled"} title="${escape(localize("Defense.BlockOptions", "Opções de Bloqueio"))}"><img src="modules/gum-hud/icons/block.svg" alt=""><span>${localize("Defense.Block", "Bloqueio")}</span></button>${specialDefenseCard}`;
   if (openSelection) {
@@ -400,7 +440,13 @@ function render() {
         await game.settings.set(MODULE, "equipmentSlots", { ...game.settings.get(MODULE, "equipmentSlots"), [actor.uuid]: slots });
         render(); return;
       }
-      if (button.hasAttribute("data-more-maneuvers")) { const palette = root.querySelector(".gum-hud-maneuver-palette"); palette.hidden = !palette.hidden; return; }
+      if (button.hasAttribute("data-more-maneuvers")) {
+        const palette = root.querySelector(".gum-hud-maneuver-palette");
+        const optionsPanel = root.querySelector(".gum-hud-combat-options-panel");
+        palette.hidden = !palette.hidden;
+        if (optionsPanel) optionsPanel.classList.toggle("is-suspended", !palette.hidden);
+        return;
+      }
       if (button.dataset.maneuver != null) { await api().effects.apply(group.effectUuids[Number(button.dataset.maneuver)], [tokenForHud], { actor, origin: actor, source: "GUM HUD" }); render(); return; }
       if (button.dataset.defense === "dodge") { closeSelectionForRoll(); await promptRoll(actor, { type: "defense", defenseType: "dodge", value: actor.system.attributes.dodge.final, defenseBonusIncluded: true, label: localize("Defense.Dodge", "Esquiva") }); return; }
       if (button.dataset.expandDefense) {
@@ -422,8 +468,15 @@ function render() {
         toggleSelection("consumables", "equipment");
         return;
       }
-      if (button.hasAttribute("data-combat-options")) {
-        toggleSelection("combatOptions", "strike");
+      if (button.hasAttribute("data-toggle-combat-options")) {
+        combatOptionsPanelOpen = !combatOptionsPanelOpen;
+        if (!combatOptionsPanelOpen) combatOptionsPanelExpanded = false;
+        render();
+        return;
+      }
+      if (button.hasAttribute("data-expand-combat-options")) {
+        combatOptionsPanelExpanded = !combatOptionsPanelExpanded;
+        render();
         return;
       }
       if (button.dataset.combatOption) {
