@@ -269,10 +269,7 @@ function combatOptionsPanelMarkup(options) {
     const selected = selectedCombatOptions.has(item.id);
     const cumulative = item.system?.combat_option?.selection_mode === "cumulative";
     const mode = cumulative ? localize("CombatOptions.Cumulative", "Cumulativa") : localize("CombatOptions.Exclusive", "Exclusiva");
-    const indicator = cumulative
-      ? (selected ? "fa-check-square" : "fa-square")
-      : (selected ? "fa-check-circle" : "fa-circle");
-    return `<button type="button" class="gum-hud-combat-option-mini ${selected ? "is-selected" : ""}" data-combat-option="${escape(item.id)}" data-preview-item="${escape(item.id)}" aria-pressed="${selected}" title="${escape(item.name)} · ${escape(mode)} · ${escape(combatOptionValue(item))}"><img src="${escape(item.img)}" alt=""><span><strong>${escape(item.name)}</strong><small>${escape(combatOptionValue(item))}</small></span><i class="fas ${indicator}" aria-hidden="true"></i></button>`;
+    return `<button type="button" class="gum-hud-combat-option-mini ${selected ? "is-selected" : ""}" data-combat-option="${escape(item.id)}" data-preview-item="${escape(item.id)}" aria-pressed="${selected}" title="${escape(item.name)} · ${escape(mode)} · ${escape(combatOptionValue(item))}"><span><img src="${escape(item.img)}" alt=""><small>${escape(combatOptionValue(item))}</small></span><strong>${escape(item.name)}</strong></button>`;
   }).join("");
   const hiddenCount = Math.max(0, options.length - 4);
   const more = hiddenCount
