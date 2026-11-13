@@ -3,6 +3,7 @@
     "General": { "Close": "Fechar", "Expand": "Expandir", "Collapse": "Recolher", "ItemNotFound": "Item não encontrado" },
     "Categories": { "Skills": "Perícias", "Spells": "Magias", "Powers": "Poderes", "Skill": "Perícia" },
     "Combat": { "Title": "OPÇÕES DE COMBATE", "Empty": "Arraste equipamentos para os slots ou marque outras opções como favoritas.", "NoSkill": "Sem perícia", "UseMode": "Modo de uso", "Cost": "Custo", "FollowUpAbbrev": "Acomp.", "FragmentationAbbrev": "Frag." },
+    "CombatOptions": { "Title": "Opções", "Count": "Opções de golpe: {count}", "Exclusive": "Exclusiva", "Cumulative": "Cumulativa" },
     "Roll": { "RollItem": "Rolar {name}", "AttackItem": "Rolar ataque de {name}", "DamageItem": "Rolar dano de {name}", "AttackMode": "Rolar ataque: {item} · {mode}", "DamageMode": "Rolar dano: {item} · {mode}", "SkillLevel": "ROLAR NH", "Attack": "ATAQUE", "Damage": "ROLAR DANO" },
     "Defense": { "Title": "DEFESAS ATIVAS", "Active": "Defesa ativa", "Defense": "Defesa", "Dodge": "Esquiva", "Parry": "Aparar", "Block": "Bloqueio", "Special": "Especial", "SpecialPlural": "Defesas especiais", "RollDodge": "Rolar Esquiva", "ParryOptions": "Opções de Aparar", "BlockOptions": "Opções de Bloqueio", "FixedValue": "Valor fixo", "SkillLevel": "NH", "HalfPlusThree": "NH/2 + 3" },
     "Consumables": { "Title": "Consumíveis", "Count": "Consumíveis: {count}", "Charges": "Cargas", "Quantity": "Quantidade", "Use": "USAR", "UseItem": "Usar {name}" },

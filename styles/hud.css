@@ -43,6 +43,7 @@ body.gum-hud-hide-hotbar #hotbar { display: none !important; }
 .gum-hud-card span { overflow: hidden; max-width: 66px; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
 #gum-hud-bar .gum-hud-category { position: relative; }
 #gum-hud-bar .gum-hud-category img { width: 50px; height: 55px; object-fit: contain; }
+.gum-hud-combat-options-card > i { display: grid; place-items: center; width: 50px; height: 55px; color: #eee4d2; font-size: 37px; }
 .gum-hud-category b { position: absolute; top: 4px; right: 4px; min-width: 16px; padding: 1px 3px; border-radius: 8px; background: #17191fe8; color: rgb(var(--region-title-rgb)); font-size: 9px; line-height: 13px; }
 .gum-hud-consumables { display: flex; align-items: center; justify-content: center; }
 #gum-hud-bar .gum-hud-consumable-card { justify-content: center; }
@@ -91,6 +92,9 @@ body.gum-hud-hide-hotbar #hotbar { display: none !important; }
 .gum-hud-consumable-balance small { color: rgb(var(--region-title-rgb)); font-size: 8px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
 .gum-hud-consumable-balance strong { font-size: 16px; }
 #gum-hud-bar .gum-hud-consumable-use { display: flex; flex: 0 0 58px; flex-direction: column; align-items: center; justify-content: center; gap: 3px; }
+.gum-hud-combat-option-domino { width: min(390px, calc(90vw - 16px)); min-height: 60px; padding: 0 !important; text-align: left; }
+#gum-hud-bar .gum-hud-combat-option-domino > i { display: grid; flex: 0 0 40px; place-items: center; border-left: 1px solid rgba(var(--region-rgb), .55); color: rgb(var(--region-title-rgb)); font-size: 17px; }
+.gum-hud-combat-option-value { display: flex; flex: 0 0 88px; align-items: center; justify-content: center; padding: 4px 7px; border-left: 1px solid rgba(var(--region-rgb), .55); color: #eee4d2; font-weight: 800; }
 .gum-hud-consumable-use small { color: rgb(var(--region-title-rgb)); font-size: 8px; font-weight: 700; letter-spacing: .04em; }
 .gum-hud-consumable-use i { font-size: 16px; }
 #gum-hud-bar .gum-hud-feature { position: relative; display: flex; flex: 0 0 60px; align-items: end; justify-content: center; width: 60px; height: 60px; padding: 0; overflow: hidden; }

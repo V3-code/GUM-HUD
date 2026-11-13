@@ -6,6 +6,7 @@ const MODULE = "gum-hud";
 let pinnedToken = null;
 let openSelection = null;
 let selectionActorUuid = null;
+let selectedCombatOptions = new Set();
 const VISIBLE_MANEUVERS = 15;
 
 const escape = value => String(value ?? "").replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
@@ -54,6 +55,56 @@ const selectedGroup = () => {
   return groups().find(group => group.id === choice || group.name === choice);
 };
 const defenseEntries = (actor, kind) => equipmentFor(actor).flatMap(item => Object.entries(item.system?.melee_attacks || {}).map(([id, attack]) => ({ item, id, attack, value: attack[kind] }))).filter(row => row.value != null && !["", "0", "-"].includes(String(row.value).trim()));
+
+function activeManeuverUuids(actor) {
+  const configured = new Set(selectedGroup()?.effectUuids || []);
+  return new Set([...actor.effects]
+    .map(effect => effect.flags?.gum?.effectUuid)
+    .filter(uuid => uuid && configured.has(uuid)));
+}
+
+function combatOptionsFor(actor) {
+  const active = activeManeuverUuids(actor);
+  if (!active.size) return [];
+  return [...actor.items]
+    .filter(item => {
+      if (item.type !== "gm_modifier" || item.system?.combat_option?.enabled !== true) return false;
+      const maneuvers = Array.isArray(item.system.combat_option.maneuver_uuids)
+        ? item.system.combat_option.maneuver_uuids.filter(Boolean)
+        : [];
+      return !maneuvers.length || maneuvers.some(uuid => active.has(uuid));
+    })
+    .sort((a, b) => a.name.localeCompare(b.name, game.i18n.lang));
+}
+
+function combatOptionValue(item) {
+  const entries = Array.isArray(item.system?.modifier_entries) && item.system.modifier_entries.length
+    ? item.system.modifier_entries
+    : [{ value: item.system?.modifier }];
+  return entries.map(entry => String(entry?.value ?? "0").trim() || "0").join(" · ");
+}
+
+function toggleCombatOption(actor, itemId) {
+  const available = combatOptionsFor(actor);
+  const item = available.find(candidate => candidate.id === itemId);
+  if (!item) return;
+  if (selectedCombatOptions.has(item.id)) {
+    selectedCombatOptions.delete(item.id);
+    return;
+  }
+  const config = item.system?.combat_option || {};
+  const group = String(config.selection_group || item.id).trim();
+  if ((config.selection_mode || "exclusive") === "exclusive") {
+    for (const selectedId of [...selectedCombatOptions]) {
+      const selected = actor.items.get(selectedId);
+      const selectedGroup = String(selected?.system?.combat_option?.selection_group || selected?.id || "").trim();
+      if (selectedGroup === group) selectedCombatOptions.delete(selectedId);
+    }
+  }
+  selectedCombatOptions.add(item.id);
+}
+
+const withCombatOptions = rollData => ({ ...rollData, preselectedModifierItemIds: [...selectedCombatOptions] });
 
 function specialDefenseEntries(actor) {
   return favorites(actor)
@@ -165,6 +216,15 @@ function expandedMarkup(actor) {
       return `<div class="gum-hud-domino gum-hud-consumable-domino" data-preview-item="${escape(item.id)}" aria-label="${escape(item.name)}"><span class="gum-hud-mode-icon"><img src="${escape(item.img)}" alt=""></span><span class="gum-hud-mode-name" title="${escape(item.name)}"><strong>${escape(item.name)}</strong><small>${escape(state.label)}</small></span><span class="gum-hud-consumable-balance"><small>${escape(state.label)}</small><strong>${escape(state.display)}</strong></span><button type="button" class="gum-hud-mode-action gum-hud-consumable-use" data-consume-item="${escape(item.id)}" ${state.available <= 0 ? "disabled" : ""} title="${escape(format("Consumables.UseItem", { name: item.name }, `Usar ${item.name}`))}"><small>${localize("Consumables.Use", "USAR")}</small><i class="fas fa-hand-pointer" aria-hidden="true"></i></button></div>`;
     }).join("");
   }
+  if (openSelection.kind === "combatOptions") {
+    return combatOptionsFor(actor).map(item => {
+      const selected = selectedCombatOptions.has(item.id);
+      const mode = item.system?.combat_option?.selection_mode === "cumulative"
+        ? localize("CombatOptions.Cumulative", "Cumulativa")
+        : localize("CombatOptions.Exclusive", "Exclusiva");
+      return `<button type="button" class="gum-hud-domino gum-hud-combat-option-domino ${selected ? "is-selected" : ""}" data-combat-option="${escape(item.id)}" data-preview-item="${escape(item.id)}" aria-pressed="${selected}" title="${escape(item.name)}"><span class="gum-hud-mode-icon"><img src="${escape(item.img)}" alt=""></span><span class="gum-hud-mode-name"><strong>${escape(item.name)}</strong><small>${escape(mode)}</small></span><span class="gum-hud-combat-option-value">${escape(combatOptionValue(item))}</span><i class="fas ${selected ? "fa-check-circle" : "fa-circle"}" aria-hidden="true"></i></button>`;
+    }).join("");
+  }
   if (openSelection.kind === "category") return categoryMarkup(actor, openSelection.key);
   const item = actor.items.get(openSelection.key);
   if (!item) return "";
@@ -223,20 +283,24 @@ function render() {
   if (!allowedToken || !api()) return;
   const tokenForHud = allowedToken;
   const actor = tokenForHud.actor;
-  if (selectionActorUuid !== actor.uuid) { openSelection = null; selectionActorUuid = actor.uuid; }
+  if (selectionActorUuid !== actor.uuid) { openSelection = null; selectedCombatOptions = new Set(); selectionActorUuid = actor.uuid; }
   const group = selectedGroup();
   const active = new Set([...actor.effects].filter(effect => effect.flags?.gum?.stackingDomain === "direct").map(effect => effect.flags?.gum?.effectUuid));
   const combatItems = [...equipmentFor(actor), ...favorites(actor).filter(item => item.type !== "equipment" && !CATEGORY_TYPES.includes(item.type))];
   const groupedItems = categorizedFavorites(actor);
   const specialDefenses = specialDefenseEntries(actor);
   const consumables = consumablesFor(actor);
+  const combatOptions = combatOptionsFor(actor);
+  const availableCombatOptionIds = new Set(combatOptions.map(item => item.id));
+  for (const itemId of [...selectedCombatOptions]) if (!availableCombatOptionIds.has(itemId)) selectedCombatOptions.delete(itemId);
   const visibleCategories = CATEGORY_TYPES.filter(type => groupedItems[type].length);
   const categoryCards = visibleCategories.map(type => {
     const label = categoryName(type);
     const selected = openSelection?.kind === "category" && openSelection.key === type;
     return `<button data-category="${type}" class="gum-hud-card gum-hud-category ${selected ? "is-selected" : ""}" aria-expanded="${selected}" title="${label}: ${groupedItems[type].length}"><img src="${categoryIcons[type]}" alt=""><span>${label}</span><b>${groupedItems[type].length}</b></button>`;
   }).join("");
-  const itemCards = combatItems.map(item => `<button data-item="${escape(item.id)}" class="gum-hud-card ${openSelection?.kind === "item" && openSelection.key === item.id ? "is-selected" : ""}" aria-expanded="${openSelection?.kind === "item" && openSelection.key === item.id}" title="${escape(item.name)}"><img src="${escape(item.img)}" alt=""><span>${escape(item.name)}</span></button>`).join("") + categoryCards;
+  const combatOptionCard = combatOptions.length ? `<button data-combat-options class="gum-hud-card gum-hud-category gum-hud-combat-options-card ${openSelection?.kind === "combatOptions" ? "is-selected" : ""}" aria-expanded="${openSelection?.kind === "combatOptions"}" title="${escape(format("CombatOptions.Count", { count: combatOptions.length }, `Opções de golpe: ${combatOptions.length}`))}"><i class="fas fa-crosshairs" aria-hidden="true"></i><span>${localize("CombatOptions.Title", "Opções")}</span><b>${selectedCombatOptions.size || combatOptions.length}</b></button>` : "";
+  const itemCards = combatItems.map(item => `<button data-item="${escape(item.id)}" class="gum-hud-card ${openSelection?.kind === "item" && openSelection.key === item.id ? "is-selected" : ""}" aria-expanded="${openSelection?.kind === "item" && openSelection.key === item.id}" title="${escape(item.name)}"><img src="${escape(item.img)}" alt=""><span>${escape(item.name)}</span></button>`).join("") + categoryCards + combatOptionCard;
   const assigned = loadoutFor(actor);
   const equipmentSlots = Array.from({ length: 5 }, (_, index) => {
     const item = actor.items.get(assigned[index]);
@@ -256,7 +320,7 @@ function render() {
   const maneuverCardCount = visibleIndices.length + (allManeuvers.length > 16 ? 1 : 0);
   const maneuverColumns = Math.min(4, Math.max(1, maneuverCardCount));
   const maneuverExpandable = maneuverCardCount > maneuverColumns * 3;
-  const combatCardCount = combatItems.length + visibleCategories.length;
+  const combatCardCount = combatItems.length + visibleCategories.length + (combatOptions.length ? 1 : 0);
   const combatColumns = Math.min(4, Math.max(1, combatCardCount));
   const combatExpandable = combatCardCount > combatColumns;
   const hp = actor.system?.attributes?.hp || {}, fp = actor.system?.attributes?.fp || {};
@@ -270,6 +334,7 @@ function render() {
   if (openSelection?.kind === "defense" && !defenseEntries(actor, openSelection.key).length) openSelection = null;
   if (openSelection?.kind === "specialDefense" && !specialDefenses.length) openSelection = null;
   if (openSelection?.kind === "consumables" && !consumables.length) openSelection = null;
+  if (openSelection?.kind === "combatOptions" && !combatOptions.length) openSelection = null;
   const specialDefenseCard = specialDefenses.length ? `<button class="gum-hud-defense ${openSelection?.kind === "specialDefense" ? "is-selected" : ""}" data-special-defenses aria-expanded="${openSelection?.kind === "specialDefense"}" title="${escape(localize("Defense.SpecialPlural", "Defesas especiais"))}"><img src="modules/gum-hud/icons/special-defense.svg" alt=""><span>${localize("Defense.Special", "Especial")}</span></button>` : "";
   root.querySelector(".gum-hud-defenses").innerHTML = `<button class="gum-hud-defense" data-defense="dodge" title="${escape(localize("Defense.RollDodge", "Rolar Esquiva"))}"><img src="modules/gum-hud/icons/dodge.svg" alt=""><span>${localize("Defense.Dodge", "Esquiva")}</span><b>${escape(actor.system?.attributes?.dodge?.final ?? "—")}</b></button><button class="gum-hud-defense ${openSelection?.kind === "defense" && openSelection.key === "final_parry" ? "is-selected" : ""}" data-expand-defense="final_parry" aria-expanded="${openSelection?.kind === "defense" && openSelection.key === "final_parry"}" ${defenseEntries(actor, "final_parry").length ? "" : "disabled"} title="${escape(localize("Defense.ParryOptions", "Opções de Aparar"))}"><img src="modules/gum-hud/icons/parry.svg" alt=""><span>${localize("Defense.Parry", "Aparar")}</span></button><button class="gum-hud-defense ${openSelection?.kind === "defense" && openSelection.key === "final_block" ? "is-selected" : ""}" data-expand-defense="final_block" aria-expanded="${openSelection?.kind === "defense" && openSelection.key === "final_block"}" ${defenseEntries(actor, "final_block").length ? "" : "disabled"} title="${escape(localize("Defense.BlockOptions", "Opções de Bloqueio"))}"><img src="modules/gum-hud/icons/block.svg" alt=""><span>${localize("Defense.Block", "Bloqueio")}</span></button>${specialDefenseCard}`;
   if (openSelection) {
@@ -357,6 +422,15 @@ function render() {
         toggleSelection("consumables", "equipment");
         return;
       }
+      if (button.hasAttribute("data-combat-options")) {
+        toggleSelection("combatOptions", "strike");
+        return;
+      }
+      if (button.dataset.combatOption) {
+        toggleCombatOption(actor, button.dataset.combatOption);
+        render();
+        return;
+      }
       if (button.dataset.consumeItem) {
         const item = actor.items.get(button.dataset.consumeItem);
         if (!item || item.type !== "equipment" || item.system?.is_consumable !== true) return;
@@ -396,7 +470,7 @@ function render() {
         const item = actor.items.get(button.dataset.source), attack = item?.system?.melee_attacks?.[button.dataset.attack] || item?.system?.ranged_attacks?.[button.dataset.attack];
         if (!attack) return;
         closeSelectionForRoll();
-        await promptRoll(actor, { type: "attack", value: attack.final_nh, itemId: item.id, attackId: button.dataset.attack, attackType: item.system.melee_attacks?.[button.dataset.attack] ? "melee" : "ranged", label: `${item.name}: ${attack.mode || attack.name || localize("Roll.Attack", "Ataque")}` }); return;
+        await promptRoll(actor, withCombatOptions({ type: "attack", value: attack.final_nh, itemId: item.id, attackId: button.dataset.attack, attackType: item.system.melee_attacks?.[button.dataset.attack] ? "melee" : "ranged", label: `${item.name}: ${attack.mode || attack.name || localize("Roll.Attack", "Ataque")}` })); return;
       }
       if (button.dataset.damageAttack) {
         const item = actor.items.get(button.dataset.source);
@@ -408,7 +482,7 @@ function render() {
         const item = actor.items.get(button.dataset.abilityAttack);
         if (!item || !item.system?.uses_attack) return;
         closeSelectionForRoll();
-        await promptRoll(actor, { type: "attack", value: item.system.attack_nh, itemId: item.id, attackType: item.system.attack_type, attributeKey: item.system.attack_roll?.skill_name, label: `${item.name}: ${localize("Roll.Attack", "Ataque")}` }); return;
+        await promptRoll(actor, withCombatOptions({ type: "attack", value: item.system.attack_nh, itemId: item.id, attackType: item.system.attack_type, attributeKey: item.system.attack_roll?.skill_name, label: `${item.name}: ${localize("Roll.Attack", "Ataque")}` })); return;
       }
       if (button.dataset.damageItem) {
         const item = actor.items.get(button.dataset.damageItem);
@@ -446,6 +520,18 @@ async function refreshManeuverNames() {
 Hooks.once("ready", () => {
   game.gumHud = { maneuverItems: new Map(), open: token => openHud(token), close: () => { pinnedToken = null; render(); } };
   refreshManeuverNames();
+});
+Hooks.on("gum.rollCompleted", context => {
+  const usedIds = Array.isArray(context?.metadata?.rollData?.preselectedModifierItemIds)
+    ? context.metadata.rollData.preselectedModifierItemIds
+    : [];
+  if (!usedIds.length || !context?.actor || context.actor.uuid !== currentToken()?.actor?.uuid) return;
+  let changed = false;
+  for (const itemId of usedIds) {
+    const item = context.actor.items.get(itemId);
+    if (item?.system?.combat_option?.reset !== "sticky" && selectedCombatOptions.delete(itemId)) changed = true;
+  }
+  if (changed) render();
 });
 for (const hook of ["updateActor", "createActiveEffect", "deleteActiveEffect", "updateActiveEffect", "canvasReady"]) Hooks.on(hook, () => { if (pinnedToken) render(); });
 for (const hook of ["createItem", "updateItem", "deleteItem"]) Hooks.on(hook, item => {

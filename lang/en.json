@@ -3,6 +3,7 @@
     "General": { "Close": "Close", "Expand": "Expand", "Collapse": "Collapse", "ItemNotFound": "Item not found" },
     "Categories": { "Skills": "Skills", "Spells": "Spells", "Powers": "Powers", "Skill": "Skill" },
     "Combat": { "Title": "COMBAT OPTIONS", "Empty": "Drop equipment into the slots or mark other options as favorites.", "NoSkill": "No skill", "UseMode": "Use mode", "Cost": "Cost", "FollowUpAbbrev": "Follow-up", "FragmentationAbbrev": "Frag." },
+    "CombatOptions": { "Title": "Options", "Count": "Strike options: {count}", "Exclusive": "Exclusive", "Cumulative": "Cumulative" },
     "Roll": { "RollItem": "Roll {name}", "AttackItem": "Roll attack with {name}", "DamageItem": "Roll damage for {name}", "AttackMode": "Roll attack: {item} · {mode}", "DamageMode": "Roll damage: {item} · {mode}", "SkillLevel": "ROLL SL", "Attack": "ATTACK", "Damage": "ROLL DAMAGE" },
     "Defense": { "Title": "ACTIVE DEFENSES", "Active": "Active defense", "Defense": "Defense", "Dodge": "Dodge", "Parry": "Parry", "Block": "Block", "Special": "Special", "SpecialPlural": "Special defenses", "RollDodge": "Roll Dodge", "ParryOptions": "Parry options", "BlockOptions": "Block options", "FixedValue": "Fixed value", "SkillLevel": "SL", "HalfPlusThree": "SL/2 + 3" },
     "Consumables": { "Title": "Consumables", "Count": "Consumables: {count}", "Charges": "Charges", "Quantity": "Quantity", "Use": "USE", "UseItem": "Use {name}" },
