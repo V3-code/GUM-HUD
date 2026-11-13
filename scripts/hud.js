@@ -275,17 +275,27 @@ function maneuverChrome(label, expandable, optionCount) {
 
 function combatOptionsPanelMarkup(options) {
   if (!options.length) return "";
-  const cards = options.map(item => {
+  const groups = new Map();
+  options.forEach((item, index) => {
     const selected = selectedCombatOptions.has(item.id);
-    const cumulative = item.system?.combat_option?.selection_mode === "cumulative";
+    const config = item.system?.combat_option || {};
+    const cumulative = config.selection_mode === "cumulative";
     const mode = cumulative ? localize("CombatOptions.Cumulative", "Cumulativa") : localize("CombatOptions.Exclusive", "Exclusiva");
-    return `<button type="button" class="gum-hud-combat-option-mini ${selected ? "is-selected" : ""}" data-combat-option="${escape(item.id)}" data-preview-item="${escape(item.id)}" aria-pressed="${selected}" title="${escape(item.name)} · ${escape(mode)} · ${escape(combatOptionValue(item))}"><span><img src="${escape(item.img)}" alt=""><small>${escape(combatOptionValue(item))}</small></span><strong>${escape(item.name)}</strong></button>`;
-  }).join("");
+    const groupName = String(config.selection_group || "").trim();
+    const key = groupName ? `named:${groupName}:${cumulative ? "cumulative" : "exclusive"}` : `general:${cumulative ? "cumulative" : "independent"}`;
+    const label = groupName || (cumulative ? localize("CombatOptions.CumulativePlural", "Cumulativas") : localize("CombatOptions.General", "Gerais"));
+    const qualifier = groupName
+      ? (cumulative ? localize("CombatOptions.CumulativePlural", "Cumulativas") : localize("CombatOptions.ExclusivePlural", "Exclusivas"))
+      : (cumulative ? localize("CombatOptions.Combine", "Combináveis") : localize("CombatOptions.Independent", "Independentes"));
+    if (!groups.has(key)) groups.set(key, { label, qualifier, cumulative, firstIndex: index, cards: [] });
+    groups.get(key).cards.push(`<button type="button" class="gum-hud-combat-option-mini ${selected ? "is-selected" : ""} ${index >= 4 ? "is-overflow" : ""}" data-combat-option="${escape(item.id)}" data-preview-item="${escape(item.id)}" aria-pressed="${selected}" title="${escape(item.name)} · ${escape(mode)} · ${escape(combatOptionValue(item))}"><span><img src="${escape(item.img)}" alt=""><small>${escape(combatOptionValue(item))}</small></span><strong>${escape(item.name)}</strong></button>`);
+  });
+  const sections = [...groups.values()].map(group => `<section class="gum-hud-combat-option-group ${group.cumulative ? "is-cumulative" : "is-exclusive"} ${group.firstIndex >= 4 ? "is-overflow" : ""}"><div class="gum-hud-combat-option-group-label"><span>${escape(group.label)}</span><small>${escape(group.qualifier)}</small></div><div class="gum-hud-combat-options-grid">${group.cards.join("")}</div></section>`).join("");
   const hiddenCount = Math.max(0, options.length - 4);
   const more = hiddenCount
     ? `<button type="button" class="gum-hud-combat-options-more" data-expand-combat-options aria-expanded="${combatOptionsPanelExpanded}">${combatOptionsPanelExpanded ? localize("CombatOptions.ShowLess", "Mostrar menos") : format("CombatOptions.ShowMore", { count: hiddenCount }, `+${hiddenCount} opções`)}</button>`
     : "";
-  return `<aside class="gum-hud-combat-options-panel ${combatOptionsPanelOpen ? "is-open" : ""} ${combatOptionsPanelExpanded ? "is-expanded" : ""}" aria-label="${escape(localize("CombatOptions.StrikeOptions", "Opções de golpe"))}"><div class="gum-hud-combat-options-heading"><i class="fas fa-crosshairs" aria-hidden="true"></i><span>${localize("CombatOptions.StrikeOptions", "Opções de golpe")}</span></div><div class="gum-hud-combat-options-grid">${cards}</div>${more}</aside>`;
+  return `<aside class="gum-hud-combat-options-panel ${combatOptionsPanelOpen ? "is-open" : ""} ${combatOptionsPanelExpanded ? "is-expanded" : ""}" aria-label="${escape(localize("CombatOptions.StrikeOptions", "Opções de golpe"))}"><div class="gum-hud-combat-options-heading"><i class="fas fa-crosshairs" aria-hidden="true"></i><span>${localize("CombatOptions.StrikeOptions", "Opções de golpe")}</span></div><div class="gum-hud-combat-option-groups">${sections}</div>${more}</aside>`;
 }
 
 function fitToFoundry(root) {
