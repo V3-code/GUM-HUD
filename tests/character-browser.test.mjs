@@ -46,6 +46,7 @@ test("browser supports search, actor organization, equipment filters, and client
   assert.doesNotMatch(template, /gum-hud-browser-tools/);
   assert.match(css, /\.gum-hud-resource-card/);
   assert.match(template, /gum-hud-resource-icon/);
+  assert.match(template, /gum-hud-resource-inline-action/);
   assert.match(css, /\.gum-hud-resource-value/);
   assert.doesNotMatch(css, /\.gum-hud-resource-card\.is-expanded \{ grid-column/);
   assert.match(browser, /characterBrowserState/);

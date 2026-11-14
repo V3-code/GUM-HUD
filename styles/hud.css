@@ -195,14 +195,18 @@ body.gum-hud-hide-hotbar #hotbar { display: none !important; }
 .gum-hud-resource-main { display: flex; align-items: center; min-width: 0; min-height: 36px; gap: 4px; padding: 3px; }
 .gum-hud-resource-icon { position: relative; display: block; flex: 0 0 30px; width: 30px; height: 30px; }
 .gum-hud-resource-icon > img { display: block; width: 30px; height: 30px; margin: 0; border: 0; border-radius: 2px; object-fit: cover; }
-.gum-hud-resource-main > strong { display: -webkit-box; flex: 1 1 0; overflow: hidden; min-width: 0; max-height: 25px; padding: 1px 3px; font-size: 10px; line-height: 12px; overflow-wrap: anywhere; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.gum-hud-resource-identity { display: flex; flex: 1 1 0; flex-wrap: wrap; align-items: center; overflow: hidden; min-width: 0; gap: 1px 4px; padding: 1px 3px; }
+.gum-hud-resource-identity > strong { display: block; flex: 1 0 100%; overflow: hidden; font-size: 10px; line-height: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.gum-hud-resource-main button.gum-hud-resource-inline-action { display: inline-flex; flex: 0 1 auto !important; align-items: baseline; justify-content: flex-start; width: auto !important; min-width: 0; min-height: 10px; gap: 3px; padding: 0; border: 0; background: transparent; color: #d8c6aa; line-height: 10px; }
+.gum-hud-resource-inline-action small { color: #b58c52; font-size: 6px; font-weight: 700; text-transform: uppercase; }
+.gum-hud-resource-inline-action b { overflow: hidden; max-width: 88px; margin: 0; font-size: 8px; line-height: 10px; text-overflow: ellipsis; white-space: nowrap; }
 .gum-hud-resource-main > small { flex: 0 0 auto; color: #c8b89e; font-size: 9px; }
 .gum-hud-resource-favorite { position: absolute; right: -2px; bottom: -2px; display: grid; place-items: center; width: 12px; height: 12px; border: 1px solid #17191f; border-radius: 50%; background: #24272d; color: #d6a04e; font-size: 6px; }
 .gum-hud-resource-main button, .gum-hud-resource-actions button { height: auto; margin: 0; border: 1px solid transparent; border-radius: 3px; background: #2a2d33; color: #eee4d2; box-shadow: none; }
 .gum-hud-resource-main button:hover, .gum-hud-resource-actions button:hover { background: #6d503260; color: #fff1d6; }
-.gum-hud-resource-main button.gum-hud-resource-value { display: flex; flex: 0 0 38px !important; flex-direction: column; align-items: center; justify-content: center; align-self: center; width: 38px !important; min-width: 38px; max-width: 38px; min-height: 28px; gap: 0; padding: 1px 3px; }
-.gum-hud-resource-value span, .gum-hud-resource-actions small { color: #caa66f; font-size: 7px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
-.gum-hud-resource-value b { font-size: 13px; line-height: 1; text-align: center; }
+.gum-hud-resource-main button.gum-hud-resource-value { display: flex; flex: 0 0 38px !important; flex-direction: column; align-items: center; justify-content: center; align-self: center; width: 38px !important; min-width: 38px; max-width: 38px; min-height: 28px; gap: 1px; padding: 1px 3px; line-height: 1; }
+.gum-hud-resource-value span, .gum-hud-resource-actions small { margin: 0; padding: 0; color: #caa66f; font-size: 7px; font-weight: 700; line-height: 7px; letter-spacing: .04em; text-transform: uppercase; }
+.gum-hud-resource-value b { display: block; margin: 0; padding: 0; font-size: 13px; line-height: 13px; text-align: center; }
 .gum-hud-resource-main button.gum-hud-resource-expand { display: grid; flex: 0 0 18px !important; place-items: center; align-self: stretch; width: 18px !important; min-width: 18px; max-width: 18px; min-height: 30px; padding: 0; color: #a89b87; font-size: 8px; }
 .gum-hud-resource-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; padding: 2px 3px 3px; border-top: 1px solid #ffffff0b; background: #191b20; }
 .gum-hud-resource-actions > button { display: flex; flex: 0 0 auto; flex-direction: row; align-items: baseline; justify-content: center; width: auto !important; min-width: 58px; min-height: 25px; gap: 4px; padding: 2px 6px; border-color: #51453666; }

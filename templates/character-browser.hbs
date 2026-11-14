@@ -18,16 +18,18 @@
                   <img src="{{item.img}}" alt=""/>
                   {{#if item.favorite}}<i class="fas fa-star gum-hud-resource-favorite" aria-label="{{../../favoriteLabel}}" title="{{../../favoriteLabel}}"></i>{{/if}}
                 </span>
-                <strong title="{{item.name}}">{{item.name}}</strong>
+                <span class="gum-hud-resource-identity">
+                  <strong title="{{item.name}}">{{item.name}}</strong>
+                  {{#if item.usesAttack}}<button type="button" class="gum-hud-resource-inline-action" data-roll-ability-attack="{{item.id}}"><small>{{../../attackLabel}}</small><b>{{item.attackNh}}</b></button>{{/if}}
+                  {{#if item.directDamage}}<button type="button" class="gum-hud-resource-inline-action" data-roll-damage-item="{{item.id}}"><small>{{../../damageLabel}}</small><b>{{item.directDamage}}</b></button>{{/if}}
+                  {{#if item.consumable}}<button type="button" class="gum-hud-resource-inline-action" data-use-consumable="{{item.id}}" {{#unless item.canConsume}}disabled{{/unless}}><small>{{../../useLabel}}</small><b>{{item.consumptionDisplay}}</b></button>{{/if}}
+                </span>
                 {{#if item.showQuantity}}<small title="{{../../quantityLabel}}">×{{item.quantity}}</small>{{/if}}
                 {{#if item.canRoll}}<button type="button" class="gum-hud-resource-value" data-roll-ability="{{item.id}}" title="{{../../rollLabel}} {{item.name}}"><span>{{../../skillLevelAbbrev}}</span><b>{{item.nh}}</b></button>{{/if}}
                 {{#if item.hasDetails}}<button type="button" class="gum-hud-resource-expand" data-expand-item="{{item.id}}" aria-expanded="{{item.expanded}}"><i class="fas fa-chevron-{{#if item.expanded}}up{{else}}down{{/if}}"></i></button>{{/if}}
               </div>
               {{#if item.expanded}}<div class="gum-hud-resource-actions">
-                {{#if item.usesAttack}}<button type="button" data-roll-ability-attack="{{item.id}}"><small>{{../../attackLabel}}</small><b>{{item.attackNh}}</b></button>{{/if}}
-                {{#if item.directDamage}}<button type="button" data-roll-damage-item="{{item.id}}"><small>{{../../damageLabel}}</small><b>{{item.directDamage}}</b></button>{{/if}}
                 {{#each item.attacks as |attack|}}<div class="gum-hud-resource-attack"><span title="{{attack.name}}">{{attack.name}}</span><button type="button" data-item-id="{{../id}}" data-roll-attack="{{attack.id}}"><small>{{../../../skillLevelAbbrev}}</small><b>{{attack.nh}}</b></button>{{#if attack.canDamage}}<button type="button" data-item-id="{{../id}}" data-roll-damage-attack="{{attack.id}}"><small>{{../../../damageLabel}}</small><b>{{attack.damage}}</b></button>{{/if}}</div>{{/each}}
-                {{#if item.consumable}}<button type="button" data-use-consumable="{{item.id}}" {{#unless item.canConsume}}disabled{{/unless}}><small>{{../../useLabel}}</small><b>{{item.consumptionDisplay}}</b></button>{{/if}}
               </div>{{/if}}
             </article>
           {{/each}}

@@ -134,8 +134,7 @@ export class CharacterResourceBrowser extends FormApplication {
     const directDamage = clean(system.damage?.formula) ? this.actions.damageLabel?.(this.actor, system.damage) || system.damage.formula : "";
     const consumable = item.type === "equipment" && system.is_consumable === true;
     const consumption = consumable ? this.actions.consumableState?.(item) : null;
-    const hasAbilityActions = ["spell", "power"].includes(item.type) && (system.uses_attack || directDamage);
-    const hasDetails = Boolean(attacks.length || consumable || hasAbilityActions);
+    const hasDetails = Boolean(attacks.length);
     return {
       id: item.id,
       name: item.name,
