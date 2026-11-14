@@ -156,7 +156,12 @@ async function toggleExecutionOption(actor, option, token) {
     }
     if (effectIds.length) await actor.deleteEmbeddedDocuments("ActiveEffect", [...new Set(effectIds)]);
   }
-  if (option.binding.sourceType === "effect") await api().effects.apply(option.binding.sourceUuid, [token], { actor, origin: actor, source: "GUM HUD" });
+  if (option.binding.sourceType === "effect") await api().effects.apply(option.binding.sourceUuid, [token], {
+    actor,
+    origin: actor,
+    source: "GUM HUD",
+    tokenIconPolicyOverride: "always"
+  });
   else selectedCombatOptions.add(option.binding.id);
 }
 
