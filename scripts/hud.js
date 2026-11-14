@@ -2,6 +2,7 @@ import { resolveAttackDamageDisplay } from "/systems/gum/module/utils/attack-dam
 import { applyAmmunition, normalizeAmmunitionLoadout } from "/systems/gum/module/utils/ammunition.mjs";
 import { buildEquipmentConsumptionUpdate, equipmentAvailableUses, resolveEquipment } from "/systems/gum/module/utils/equipment-resolution.mjs";
 import { ExecutionOptionsConfig } from "./execution-config.js";
+import { CharacterResourceBrowser } from "./character-browser.js";
 import {
   EXECUTION_REGISTRY_SETTING,
   LEGACY_MIGRATION_SETTING,
@@ -22,6 +23,7 @@ let selectedCombatOptions = new Set();
 let combatOptionsPanelOpen = false;
 let combatOptionsPanelExpanded = false;
 let combatOptionsManeuverKey = "";
+let characterBrowser = null;
 const VISIBLE_MANEUVERS = 15;
 
 const escape = value => String(value ?? "").replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
@@ -45,9 +47,15 @@ function openHud(token, { notify = true } = {}) {
     if (notify) ui.notifications.warn(localize("Permissions.OwnerRequired", "Você precisa ser proprietário do personagem para abrir seu HUD."));
     return false;
   }
+  if (characterBrowser && characterBrowser.actorUuid !== document.actor.uuid) closeCharacterBrowser();
   pinnedToken = document;
   render();
   return true;
+}
+function closeCharacterBrowser() {
+  const browser = characterBrowser;
+  characterBrowser = null;
+  browser?.close({ animate: false });
 }
 function retainHudOwnership(actor, { notify = true } = {}) {
   if (ownsActor(actor)) return true;
@@ -202,6 +210,76 @@ function consumableState(item) {
       ? `${resolution.uses.remaining}/${resolution.uses.max}`
       : String(available)
   };
+}
+
+async function consumeEquipment(actor, item) {
+  if (!item || item.type !== "equipment" || item.system?.is_consumable !== true) return;
+  const state = consumableState(item);
+  const consumption = buildEquipmentConsumptionUpdate(item.system, state.resolution);
+  if (!consumption.consumed) {
+    ui.notifications.warn(consumption.reason === "empty_charges"
+      ? format("Notifications.NoCharges", { name: item.name }, `"${item.name}" não possui cargas restantes.`)
+      : format("Notifications.NoQuantity", { name: item.name }, `"${item.name}" não possui quantidade suficiente para consumir.`));
+    return;
+  }
+  await item.update(consumption.updates);
+  await api().effects.applyUseEvent(item, actor, "consume");
+  const nextQuantity = consumption.updates["system.quantity"] ?? item.system.quantity;
+  const nextSpent = consumption.updates["system.current_uses"] ?? consumption.uses.spent;
+  ui.notifications.info(consumption.mode === "charges"
+    ? format("Notifications.UsedCharges", { name: item.name, remaining: Math.max(0, consumption.uses.max - nextSpent), exhausted: consumption.exhausted ? localize("Notifications.Exhausted", " (esgotado)") : "" }, `${item.name} usado. Cargas restantes: ${Math.max(0, consumption.uses.max - nextSpent)}${consumption.exhausted ? " (esgotado)" : ""}.`)
+    : format("Notifications.ConsumedQuantity", { name: item.name, remaining: nextQuantity }, `${item.name} consumido. Quantidade restante: ${nextQuantity}.`));
+}
+
+function characterBrowserActions() {
+  return {
+    damageLabel: damageText,
+    attackDamageLabel: (actor, attack) => attackDamage(actor, attack).main,
+    consumableState,
+    preview: async (actor, item) => api().ui.previewItem(item.id, { actor, sendToChat: true }),
+    rollAbility: async (actor, item) => {
+      closeSelectionForRoll();
+      await promptRoll(actor, withExecutionOptions(actor, { type: item.type, value: item.type === "skill" ? item.system.tree_final_nh ?? item.system.final_nh : item.system.final_nh, itemId: item.id, attributeKey: item.type === "skill" ? item.system.tree_base_attribute || item.system.base_attribute : undefined, label: item.name }));
+    },
+    rollAbilityAttack: async (actor, item) => {
+      if (!item.system?.uses_attack) return;
+      closeSelectionForRoll();
+      await promptRoll(actor, withExecutionOptions(actor, { type: "attack", value: item.system.attack_nh, itemId: item.id, attackType: item.system.attack_type, attributeKey: item.system.attack_roll?.skill_name, label: `${item.name}: ${localize("Roll.Attack", "Ataque")}` }));
+    },
+    rollAttack: async (actor, item, attackId) => {
+      const attack = item.system?.melee_attacks?.[attackId] || item.system?.ranged_attacks?.[attackId];
+      if (!attack) return;
+      closeSelectionForRoll();
+      await promptRoll(actor, withExecutionOptions(actor, { type: "attack", value: attack.final_nh, itemId: item.id, attackId, attackType: item.system.melee_attacks?.[attackId] ? "melee" : "ranged", label: `${item.name}: ${attack.mode || attack.name || localize("Roll.Attack", "Ataque")}` }));
+    },
+    damageItem: async (actor, item) => {
+      if (!item.system?.damage?.formula) return;
+      closeSelectionForRoll();
+      await api().damage.fromHotbar({ actorUuid: actor.uuid, damageData: { kind: "item", itemId: item.id, itemUuid: item.uuid } });
+    },
+    damageAttack: async (actor, item, attackId) => {
+      if (!item.system?.melee_attacks?.[attackId] && !item.system?.ranged_attacks?.[attackId]) return;
+      closeSelectionForRoll();
+      await api().damage.fromHotbar({ actorUuid: actor.uuid, damageData: { kind: "item", itemId: item.id, itemUuid: item.uuid, attackId } });
+    },
+    consume: consumeEquipment,
+    categoryChanged: () => render(),
+    closed: browser => { if (characterBrowser === browser) { characterBrowser = null; render(); } }
+  };
+}
+
+function openCharacterBrowser(actor, category) {
+  if (!ownsActor(actor)) return;
+  if (characterBrowser?.actorUuid === actor.uuid) {
+    characterBrowser.setCategory(category);
+    if (characterBrowser._minimized) characterBrowser.maximize?.();
+    characterBrowser.bringToTop?.();
+    return;
+  }
+  closeCharacterBrowser();
+  characterBrowser = new CharacterResourceBrowser({ actor, category, actions: characterBrowserActions() });
+  characterBrowser.render(true);
+  render();
 }
 
 function groupedDefenses(actor, kind) {
@@ -385,7 +463,7 @@ function render() {
   }
   const allowedToken = token && ownsActor(token.actor) ? token : null;
   document.body.classList.toggle("gum-hud-hide-hotbar", Boolean(allowedToken && api() && game.settings.get(MODULE, "hideHotbar")));
-  if (!allowedToken || !api()) return;
+  if (!allowedToken || !api()) { closeCharacterBrowser(); return; }
   const tokenForHud = allowedToken;
   const actor = tokenForHud.actor;
   if (selectionActorUuid !== actor.uuid) {
@@ -451,7 +529,13 @@ function render() {
   root.style.setProperty("--combat-columns", combatColumns);
   const consumablesLabel = localize("Consumables.Title", "Consumíveis");
   const consumableRegion = consumables.length ? `<div class="gum-hud-region gum-hud-consumable-region">${regionChrome(consumablesLabel.toLocaleUpperCase(game.i18n.lang), "consumables", false)}<div class="gum-hud-consumables"><button class="gum-hud-card gum-hud-consumable-card ${openSelection?.kind === "consumables" ? "is-selected" : ""}" data-consumables aria-expanded="${openSelection?.kind === "consumables"}" title="${escape(format("Consumables.Count", { count: consumables.length }, `${consumablesLabel}: ${consumables.length}`))}"><img src="icons/containers/bags/pack-leather-white-tan.webp" alt=""></button></div><div class="gum-hud-expanded"></div></div>` : "";
-  root.innerHTML = `<div class="gum-hud-region gum-hud-identity-region gum-hud-summary"><div class="gum-hud-loadout" aria-label="${escape(localize("Identity.QuickEquipment", "Equipamentos rápidos"))}">${equipmentSlots}</div><img src="${escape(tokenForHud.document.texture?.src || actor.img)}" alt=""><div class="gum-hud-summary-info"><strong>${escape(actor.name)}</strong><small>HP ${escape(hp.value ?? hp.current ?? "—")} · FP ${escape(fp.value ?? fp.current ?? "—")}</small></div><button data-close title="${escape(localize("General.Close", "Fechar"))}">×</button></div><div class="gum-hud-region gum-hud-maneuver-region ${regionIsExpanded("maneuvers") ? "is-expanded" : ""}">${maneuverChrome(localize("Maneuvers.Title", "MANOBRAS"), maneuverExpandable, combatOptions, actor)}<div class="gum-hud-maneuvers">${maneuvers || `<small>${localize("Maneuvers.SelectGroup", "Selecione um grupo nas configurações.")}</small>`}</div><div class="gum-hud-maneuver-palette" hidden>${extraManeuvers}</div>${combatOptionsPanelMarkup(actor, combatOptions)}</div><div class="gum-hud-region gum-hud-combat ${regionIsExpanded("combat") ? "is-expanded" : ""}">${regionChrome(localize("Combat.Title", "OPÇÕES DE COMBATE"), "combat", combatExpandable)}<div class="gum-hud-cards">${itemCards || `<small>${localize("Combat.Empty", "Arraste equipamentos para os slots ou marque outras opções como favoritas.")}</small>`}</div><div class="gum-hud-expanded"></div></div><div class="gum-hud-region gum-hud-defense-region">${regionChrome(localize("Defense.Title", "DEFESAS ATIVAS"), "defenses", false)}<div class="gum-hud-defenses"></div><div class="gum-hud-expanded"></div></div>${consumableRegion}`;
+  const resourceRail = [
+    ["skill", "fa-list", localize("CharacterBrowser.Skills", "Perícias")],
+    ["spell", "fa-book-open", localize("CharacterBrowser.Spells", "Magias")],
+    ["power", "fa-bolt", localize("CharacterBrowser.Powers", "Poderes")],
+    ["equipment", "fa-toolbox", localize("CharacterBrowser.Equipment", "Equipamentos")]
+  ].map(([category, icon, label]) => `<button type="button" data-character-browser="${category}" class="${characterBrowser?.actorUuid === actor.uuid && characterBrowser.category === category ? "is-active" : ""}" title="${escape(label)}"><i class="fas ${icon}" aria-hidden="true"></i></button>`).join("");
+  root.innerHTML = `<div class="gum-hud-region gum-hud-identity-region gum-hud-summary"><div class="gum-hud-loadout" aria-label="${escape(localize("Identity.QuickEquipment", "Equipamentos rápidos"))}">${equipmentSlots}</div><img src="${escape(tokenForHud.document.texture?.src || actor.img)}" alt=""><div class="gum-hud-summary-info"><strong>${escape(actor.name)}</strong><small>HP ${escape(hp.value ?? hp.current ?? "—")} · FP ${escape(fp.value ?? fp.current ?? "—")}</small></div><button data-close title="${escape(localize("General.Close", "Fechar"))}">×</button></div><nav class="gum-hud-resource-rail" aria-label="${escape(localize("CharacterBrowser.Access", "Acesso rápido"))}">${resourceRail}</nav><div class="gum-hud-region gum-hud-maneuver-region ${regionIsExpanded("maneuvers") ? "is-expanded" : ""}">${maneuverChrome(localize("Maneuvers.Title", "MANOBRAS"), maneuverExpandable, combatOptions, actor)}<div class="gum-hud-maneuvers">${maneuvers || `<small>${localize("Maneuvers.SelectGroup", "Selecione um grupo nas configurações.")}</small>`}</div><div class="gum-hud-maneuver-palette" hidden>${extraManeuvers}</div>${combatOptionsPanelMarkup(actor, combatOptions)}</div><div class="gum-hud-region gum-hud-combat ${regionIsExpanded("combat") ? "is-expanded" : ""}">${regionChrome(localize("Combat.Title", "OPÇÕES DE COMBATE"), "combat", combatExpandable)}<div class="gum-hud-cards">${itemCards || `<small>${localize("Combat.Empty", "Arraste equipamentos para os slots ou marque outras opções como favoritas.")}</small>`}</div><div class="gum-hud-expanded"></div></div><div class="gum-hud-region gum-hud-defense-region">${regionChrome(localize("Defense.Title", "DEFESAS ATIVAS"), "defenses", false)}<div class="gum-hud-defenses"></div><div class="gum-hud-expanded"></div></div>${consumableRegion}`;
   if (openSelection?.kind === "defense" && !defenseEntries(actor, openSelection.key).length) openSelection = null;
   if (openSelection?.kind === "specialDefense" && !specialDefenses.length) openSelection = null;
   if (openSelection?.kind === "consumables" && !consumables.length) openSelection = null;
@@ -506,7 +590,8 @@ function render() {
     const button = event.target.closest("button");
     if (!button) return;
     try {
-      if (button.hasAttribute("data-close")) { pinnedToken = null; render(); return; }
+      if (button.hasAttribute("data-close")) { pinnedToken = null; closeCharacterBrowser(); render(); return; }
+      if (button.dataset.characterBrowser) { openCharacterBrowser(actor, button.dataset.characterBrowser); return; }
       if (button.dataset.toggleRegion) {
         const key = button.dataset.toggleRegion;
         const expanded = { ...game.settings.get(MODULE, "expandedRegions") };
@@ -572,22 +657,7 @@ function render() {
       }
       if (button.dataset.consumeItem) {
         const item = actor.items.get(button.dataset.consumeItem);
-        if (!item || item.type !== "equipment" || item.system?.is_consumable !== true) return;
-        const state = consumableState(item);
-        const consumption = buildEquipmentConsumptionUpdate(item.system, state.resolution);
-        if (!consumption.consumed) {
-          ui.notifications.warn(consumption.reason === "empty_charges"
-            ? format("Notifications.NoCharges", { name: item.name }, `"${item.name}" não possui cargas restantes.`)
-            : format("Notifications.NoQuantity", { name: item.name }, `"${item.name}" não possui quantidade suficiente para consumir.`));
-          return;
-        }
-        await item.update(consumption.updates);
-        await api().effects.applyUseEvent(item, actor, "consume");
-        const nextQuantity = consumption.updates["system.quantity"] ?? item.system.quantity;
-        const nextSpent = consumption.updates["system.current_uses"] ?? consumption.uses.spent;
-        ui.notifications.info(consumption.mode === "charges"
-          ? format("Notifications.UsedCharges", { name: item.name, remaining: Math.max(0, consumption.uses.max - nextSpent), exhausted: consumption.exhausted ? localize("Notifications.Exhausted", " (esgotado)") : "" }, `${item.name} usado. Cargas restantes: ${Math.max(0, consumption.uses.max - nextSpent)}${consumption.exhausted ? " (esgotado)" : ""}.`)
-          : format("Notifications.ConsumedQuantity", { name: item.name, remaining: nextQuantity }, `${item.name} consumido. Quantidade restante: ${nextQuantity}.`));
+        await consumeEquipment(actor, item);
         render();
         return;
       }
@@ -644,13 +714,14 @@ Hooks.once("init", () => {
   game.settings.register(MODULE, "hideHotbar", { name: "GUMHUD.Settings.HideHotbar.Name", hint: "GUMHUD.Settings.HideHotbar.Hint", scope: "client", config: true, type: Boolean, default: true, onChange: render });
   game.settings.register(MODULE, "equipmentSlots", { name: "GUMHUD.Settings.EquipmentSlots.Name", scope: "client", config: false, type: Object, default: {} });
   game.settings.register(MODULE, "expandedRegions", { name: "GUMHUD.Settings.ExpandedRegions.Name", scope: "client", config: false, type: Object, default: { maneuvers: false, combat: false } });
+  game.settings.register(MODULE, "characterBrowserState", { name: "GUMHUD.Settings.CharacterBrowserState.Name", scope: "client", config: false, type: Object, default: { category: "skill", equipmentFilter: "all" } });
   game.settings.register(MODULE, EXECUTION_REGISTRY_SETTING, { scope: "world", config: false, type: Object, default: { version: 2, bindings: [] }, onChange: async () => { await hydrateExecutionSources(); if (pinnedToken) render(); } });
   game.settings.register(MODULE, LEGACY_MIGRATION_SETTING, { scope: "world", config: false, type: Boolean, default: false });
   game.settings.registerMenu(MODULE, "executionOptions", {
     name: "GUMHUD.ExecutionConfig.MenuName", hint: "GUMHUD.ExecutionConfig.MenuHint", label: "GUMHUD.ExecutionConfig.MenuLabel",
     icon: "fas fa-crosshairs", type: ExecutionOptionsConfig, restricted: true
   });
-  game.keybindings.register(MODULE, "toggle", { name: "GUMHUD.Keybindings.Toggle", editable: [{ key: "KeyH", modifiers: ["CONTROL", "SHIFT"] }], onDown: () => { if (pinnedToken) { pinnedToken = null; render(); } else openHud(null); return true; } });
+  game.keybindings.register(MODULE, "toggle", { name: "GUMHUD.Keybindings.Toggle", editable: [{ key: "KeyH", modifiers: ["CONTROL", "SHIFT"] }], onDown: () => { if (pinnedToken) { pinnedToken = null; closeCharacterBrowser(); render(); } else openHud(null); return true; } });
 });
 
 const legacyEnabled = value => value === true || value === 1 || ["true", "1", "on"].includes(String(value ?? "").trim().toLocaleLowerCase());
@@ -710,7 +781,7 @@ async function refreshManeuverNames() {
 
 Hooks.once("ready", async () => {
   game.gumHud = {
-    maneuverItems: new Map(), open: token => openHud(token), close: () => { pinnedToken = null; render(); },
+    maneuverItems: new Map(), open: token => openHud(token), close: () => { pinnedToken = null; closeCharacterBrowser(); render(); },
     configureExecutionOptions: options => { if (game.user.isGM) new ExecutionOptionsConfig(options).render(true); }
   };
   await migrateLegacyCombatOptions();
@@ -731,10 +802,24 @@ Hooks.on("gum.rollCompleted", context => {
   }
   if (changed) render();
 });
-for (const hook of ["updateActor", "createActiveEffect", "deleteActiveEffect", "updateActiveEffect", "canvasReady"]) Hooks.on(hook, () => { if (pinnedToken) render(); });
+Hooks.on("updateActor", actor => {
+  const relevant = actor?.uuid === currentToken()?.actor?.uuid;
+  if (pinnedToken && relevant) render();
+  if (actor?.uuid === characterBrowser?.actorUuid) {
+    if (!ownsActor(actor)) closeCharacterBrowser();
+    else characterBrowser.render(false);
+  }
+});
+for (const hook of ["createActiveEffect", "deleteActiveEffect", "updateActiveEffect"]) Hooks.on(hook, effect => {
+  const actorUuid = effect?.parent?.uuid;
+  if (pinnedToken && actorUuid === currentToken()?.actor?.uuid) render();
+  if (actorUuid === characterBrowser?.actorUuid) characterBrowser.render(false);
+});
+Hooks.on("canvasReady", () => { if (pinnedToken) render(); if (characterBrowser) characterBrowser.render(false); });
 for (const hook of ["createItem", "updateItem", "deleteItem"]) Hooks.on(hook, item => {
   if (!pinnedToken) return;
   const relevantSource = getExecutionRegistry().bindings.some(binding => binding.sourceUuid === item?.uuid);
   if (item?.parent?.uuid === currentToken()?.actor?.uuid || relevantSource) render();
+  if (item?.parent?.uuid === characterBrowser?.actorUuid) characterBrowser.render(false);
 });
 window.addEventListener("resize", () => { const root = document.getElementById("gum-hud-bar"); if (root) fitToFoundry(root); });
