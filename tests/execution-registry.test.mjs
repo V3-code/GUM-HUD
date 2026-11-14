@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { executionBindingsFor, normalizeExecutionRegistry, resolveExecutionSource } from "../scripts/execution-registry.js";
+import { ALL_MANEUVERS, executionBindingsFor, normalizeExecutionRegistry, resolveExecutionSource } from "../scripts/execution-registry.js";
 
 test("normalizes world execution bindings without coupling them to GUM item data", () => {
   const registry = normalizeExecutionRegistry({ bindings: [
@@ -13,6 +13,17 @@ test("normalizes world execution bindings without coupling them to GUM item data
   assert.equal(registry.bindings[1].maneuverUuid, "M1");
   assert.equal(registry.bindings[1].mode, "cumulative");
   assert.equal(registry.bindings[1].reset, "sticky");
+});
+
+test("applies general options to every active maneuver and lets a specific binding override duplicates", () => {
+  const registry = normalizeExecutionRegistry({ bindings: [
+    { id: "general", maneuverUuid: ALL_MANEUVERS, sourceType: "modifier", sourceUuid: "Item.Shared" },
+    { id: "general-only", maneuverUuid: ALL_MANEUVERS, sourceType: "modifier", sourceUuid: "Item.General" },
+    { id: "specific", maneuverUuid: "M1", sourceType: "modifier", sourceUuid: "Item.Shared" }
+  ] });
+  assert.deepEqual(executionBindingsFor(registry, { actorUuid: "Actor.A", maneuverUuids: ["M1"] }).map(binding => binding.id), ["general-only", "specific"]);
+  assert.deepEqual(executionBindingsFor(registry, { actorUuid: "Actor.A", maneuverUuids: ["M2"] }).map(binding => binding.id), ["general", "general-only"]);
+  assert.deepEqual(executionBindingsFor(registry, { actorUuid: "Actor.A", maneuverUuids: [] }), []);
 });
 
 test("retains a portable source snapshot for world-wide modifier bindings", () => {

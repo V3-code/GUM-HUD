@@ -2,6 +2,7 @@ export const MODULE_ID = "gum-hud";
 export const EXECUTION_REGISTRY_SETTING = "executionRegistry";
 export const LEGACY_MIGRATION_SETTING = "legacyCombatOptionsMigrated";
 export const EXECUTION_REGISTRY_VERSION = 2;
+export const ALL_MANEUVERS = "__all__";
 
 const clean = value => String(value ?? "").trim();
 
@@ -47,10 +48,12 @@ export function executionBindingsFor(registry, { actorUuid, maneuverUuids } = {}
   const active = new Set(Array.from(maneuverUuids || [], clean).filter(Boolean));
   const actor = clean(actorUuid);
   if (!active.size || !actor) return [];
-  return normalizeExecutionRegistry(registry).bindings.filter(binding =>
-    active.has(binding.maneuverUuid)
+  const eligible = normalizeExecutionRegistry(registry).bindings.filter(binding =>
+    (binding.maneuverUuid === ALL_MANEUVERS || active.has(binding.maneuverUuid))
     && (!binding.actorUuid || binding.actorUuid === actor)
   );
+  const specificSources = new Set(eligible.filter(binding => binding.maneuverUuid !== ALL_MANEUVERS).map(binding => binding.sourceUuid));
+  return eligible.filter(binding => binding.maneuverUuid !== ALL_MANEUVERS || !specificSources.has(binding.sourceUuid));
 }
 
 export function getExecutionRegistry() {

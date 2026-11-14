@@ -1,4 +1,4 @@
-import { getExecutionRegistry, hydrateExecutionSources, removeExecutionBinding, setExecutionRegistry, snapshotExecutionSource, upsertExecutionBinding } from "./execution-registry.js";
+import { ALL_MANEUVERS, getExecutionRegistry, hydrateExecutionSources, removeExecutionBinding, setExecutionRegistry, snapshotExecutionSource, upsertExecutionBinding } from "./execution-registry.js";
 
 const t = (key, fallback) => {
   const id = `GUMHUD.ExecutionConfig.${key}`;
@@ -26,7 +26,10 @@ export class ExecutionOptionsConfig extends FormApplication {
   async getData() {
     const maneuverUuids = selectedManeuverGroup()?.effectUuids || [];
     const maneuverItems = await Promise.all(maneuverUuids.map(uuid => fromUuid(uuid).catch(() => null)));
-    const maneuvers = maneuverUuids.map((uuid, index) => ({ uuid, name: maneuverItems[index]?.name || uuid }));
+    const maneuvers = maneuverUuids.length ? [
+      { uuid: ALL_MANEUVERS, name: t("AllManeuvers", "Todas") },
+      ...maneuverUuids.map((uuid, index) => ({ uuid, name: maneuverItems[index]?.name || uuid }))
+    ] : [];
     if (!maneuvers.some(entry => entry.uuid === this.maneuverUuid)) this.maneuverUuid = maneuvers[0]?.uuid || null;
     const registry = getExecutionRegistry();
     const relevant = registry.bindings.filter(binding => binding.maneuverUuid === this.maneuverUuid && !binding.actorUuid);
@@ -78,7 +81,7 @@ export class ExecutionOptionsConfig extends FormApplication {
   async _addSource(sourceUuid) {
     const item = await fromUuid(sourceUuid).catch(() => null);
     if (!item || !["effect", "gm_modifier"].includes(item.type)) return ui.notifications.warn(t("SourceRequired", "Informe um Item Efeito ou Modificador do Mestre válido."));
-    if (item.uuid === this.maneuverUuid) return ui.notifications.warn(t("SelfReference", "A manobra não pode ser sua própria opção de execução."));
+    if (this.maneuverUuid !== ALL_MANEUVERS && item.uuid === this.maneuverUuid) return ui.notifications.warn(t("SelfReference", "A manobra não pode ser sua própria opção de execução."));
     await this._addBinding({ sourceType: item.type === "effect" ? "effect" : "modifier", sourceUuid: item.uuid, sourceData: snapshotExecutionSource(item) });
   }
   async _addBinding(data) {
