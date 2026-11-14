@@ -1,18 +1,17 @@
 <form class="gum-hud-execution-form">
-  <header class="gum-hud-execution-toolbar">
-    <label>{{labels.actor}}<select data-actor>{{#each actors as |actor|}}<option value="{{actor.uuid}}" {{#if actor.selected}}selected{{/if}}>{{actor.name}}</option>{{/each}}</select></label>
-    <label>{{labels.maneuver}}<select data-maneuver>{{#each maneuvers as |maneuver|}}<option value="{{maneuver.uuid}}" {{#if maneuver.selected}}selected{{/if}}>{{maneuver.name}}</option>{{/each}}</select></label>
-  </header>
-  {{#if hasContext}}
+  {{#if maneuvers.length}}
+    <nav class="gum-hud-execution-maneuver-tags">
+      {{#each maneuvers as |maneuver|}}<button type="button" data-maneuver-tag="{{maneuver.uuid}}" class="{{#if maneuver.selected}}is-selected{{/if}}">{{maneuver.name}}</button>{{/each}}
+    </nav>
     <section class="gum-hud-execution-adders">
-      <div><label>{{labels.modifier}}<select data-modifier-source><option value=""></option>{{#each modifiers as |modifier|}}<option value="{{modifier.uuid}}">{{modifier.name}}</option>{{/each}}</select></label><button type="button" data-add-modifier><i class="fas fa-plus"></i> {{labels.addModifier}}</button></div>
-      <div><label>{{labels.effectUuid}}<input type="text" data-effect-uuid placeholder="Compendium.…"/></label><button type="button" data-add-effect><i class="fas fa-plus"></i> {{labels.addEffect}}</button></div>
+      <label>{{labels.source}}<input type="text" data-source-uuid placeholder="{{labels.sourcePlaceholder}}"/></label>
+      <button type="button" data-add-source><i class="fas fa-plus"></i> {{labels.addSource}}</button>
       <p><i class="fas fa-hand-pointer"></i> {{labels.dropHint}}</p>
     </section>
     <div class="gum-hud-execution-list" data-binding-list>
       {{#each bindings as |binding|}}
         <article class="gum-hud-execution-binding {{#if binding.missing}}is-missing{{/if}}" data-binding-id="{{binding.id}}">
-          <img src="{{binding.img}}" alt=""/><div class="gum-hud-execution-source"><strong>{{binding.name}}</strong><small>{{#if binding.isEffect}}{{../labels.globalEffect}}{{else}}{{../actorName}}{{/if}}</small></div>
+          <img src="{{binding.img}}" alt=""/><div class="gum-hud-execution-source"><strong>{{binding.name}}</strong><small>{{#if binding.isEffect}}{{../labels.effectItem}}{{else}}{{../labels.gmModifier}}{{/if}}</small></div>
           <label>{{../labels.group}}<input type="text" data-binding-field="group" value="{{binding.group}}" {{#if binding.behaviorLocked}}disabled{{/if}}/></label>
           <label>{{../labels.mode}}<select data-binding-field="mode" {{#if binding.behaviorLocked}}disabled{{/if}}><option value="exclusive" {{#if (eq binding.mode "exclusive")}}selected{{/if}}>{{../labels.exclusive}}</option><option value="cumulative" {{#if (eq binding.mode "cumulative")}}selected{{/if}}>{{../labels.cumulative}}</option></select></label>
           {{#if binding.isModifier}}<label>{{../labels.reset}}<select data-binding-field="reset"><option value="after_roll" {{#if (eq binding.reset "after_roll")}}selected{{/if}}>{{../labels.afterRoll}}</option><option value="sticky" {{#if (eq binding.reset "sticky")}}selected{{/if}}>{{../labels.sticky}}</option></select></label>{{/if}}
@@ -20,7 +19,5 @@
         </article>
       {{else}}<p class="gum-hud-execution-empty">{{labels.empty}}</p>{{/each}}
     </div>
-  {{else}}
-    <p class="gum-hud-execution-empty">{{#unless actors.length}}{{labels.noActors}}{{else}}{{labels.noManeuvers}}{{/unless}}</p>
-  {{/if}}
+  {{else}}<p class="gum-hud-execution-empty">{{labels.noManeuvers}}</p>{{/if}}
 </form>

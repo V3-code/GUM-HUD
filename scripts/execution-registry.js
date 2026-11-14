@@ -1,7 +1,7 @@
 export const MODULE_ID = "gum-hud";
 export const EXECUTION_REGISTRY_SETTING = "executionRegistry";
 export const LEGACY_MIGRATION_SETTING = "legacyCombatOptionsMigrated";
-export const EXECUTION_REGISTRY_VERSION = 1;
+export const EXECUTION_REGISTRY_VERSION = 2;
 
 const clean = value => String(value ?? "").trim();
 
@@ -13,10 +13,20 @@ export function normalizeExecutionBinding(binding = {}, index = 0) {
     actorUuid: clean(binding.actorUuid) || null,
     sourceType,
     sourceUuid: clean(binding.sourceUuid),
+    sourceData: binding.sourceData && typeof binding.sourceData === "object" ? binding.sourceData : null,
     group: clean(binding.group),
     mode: binding.mode === "cumulative" ? "cumulative" : "exclusive",
     reset: binding.reset === "sticky" ? "sticky" : "after_roll",
     order: Number.isFinite(Number(binding.order)) ? Number(binding.order) : index
+  };
+}
+
+export function snapshotExecutionSource(item) {
+  if (!item) return null;
+  const system = item.toObject?.().system || item._source?.system || item.system || {};
+  return {
+    id: item.id, uuid: item.uuid, type: item.type, name: item.name, img: item.img,
+    system: structuredClone(system)
   };
 }
 
@@ -26,7 +36,6 @@ export function normalizeExecutionRegistry(value = {}) {
     .map(normalizeExecutionBinding)
     .filter(binding => {
       if (!binding.maneuverUuid || !binding.sourceUuid || seen.has(binding.id)) return false;
-      if (binding.sourceType === "modifier" && !binding.actorUuid) return false;
       seen.add(binding.id);
       return true;
     })
@@ -40,7 +49,7 @@ export function executionBindingsFor(registry, { actorUuid, maneuverUuids } = {}
   if (!active.size || !actor) return [];
   return normalizeExecutionRegistry(registry).bindings.filter(binding =>
     active.has(binding.maneuverUuid)
-    && (binding.sourceType === "effect" ? !binding.actorUuid || binding.actorUuid === actor : binding.actorUuid === actor)
+    && (!binding.actorUuid || binding.actorUuid === actor)
   );
 }
 
@@ -68,21 +77,20 @@ export function removeExecutionBinding(registry, id) {
   return normalizeExecutionRegistry({ bindings });
 }
 
-const effectCache = new Map();
+const sourceCache = new Map();
 
 export async function hydrateExecutionSources(registry = getExecutionRegistry()) {
-  const effectUuids = [...new Set(normalizeExecutionRegistry(registry).bindings
-    .filter(binding => binding.sourceType === "effect")
-    .map(binding => binding.sourceUuid))];
-  const resolved = await Promise.all(effectUuids.map(uuid => fromUuid(uuid).catch(() => null)));
-  effectCache.clear();
-  effectUuids.forEach((uuid, index) => effectCache.set(uuid, resolved[index] || null));
-  return effectCache;
+  const sourceUuids = [...new Set(normalizeExecutionRegistry(registry).bindings.map(binding => binding.sourceUuid))];
+  const resolved = await Promise.all(sourceUuids.map(uuid => fromUuid(uuid).catch(() => null)));
+  sourceCache.clear();
+  sourceUuids.forEach((uuid, index) => sourceCache.set(uuid, resolved[index] || null));
+  return sourceCache;
 }
 
 export function resolveExecutionSource(binding, actor) {
-  if (binding.sourceType === "modifier") {
-    return [...(actor?.items || [])].find(item => item.uuid === binding.sourceUuid || item.id === binding.sourceUuid) || null;
+  if (binding.sourceType === "modifier" && binding.actorUuid) {
+    const embedded = [...(actor?.items || [])].find(item => item.uuid === binding.sourceUuid || item.id === binding.sourceUuid);
+    if (embedded) return embedded;
   }
-  return effectCache.get(binding.sourceUuid) || null;
+  return sourceCache.get(binding.sourceUuid) || binding.sourceData || null;
 }

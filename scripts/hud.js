@@ -10,7 +10,8 @@ import {
   hydrateExecutionSources,
   normalizeExecutionRegistry,
   resolveExecutionSource,
-  setExecutionRegistry
+  setExecutionRegistry,
+  snapshotExecutionSource
 } from "./execution-registry.js";
 
 const MODULE = "gum-hud";
@@ -84,6 +85,25 @@ function executionOptionsFor(actor) {
     .sort((a, b) => a.binding.order - b.binding.order || a.item.name.localeCompare(b.item.name, game.i18n.lang));
 }
 
+function portableModifierData(option) {
+  const system = option.item.system || {};
+  const clone = value => foundry.utils.deepClone(value ?? null);
+  return {
+    id: option.binding.id,
+    sourceItemId: option.item.id,
+    name: option.item.name,
+    system: {
+      modifier_entries: clone(system.modifier_entries) || [],
+      modifier: system.modifier,
+      nh_cap: system.nh_cap,
+      contexts: clone(system.contexts),
+      context: system.context,
+      roll_tags: clone(system.roll_tags) || [],
+      roll_tag_match: system.roll_tag_match
+    }
+  };
+}
+
 function modifierOptionValue(item) {
   const entries = Array.isArray(item.system?.modifier_entries) && item.system.modifier_entries.length
     ? item.system.modifier_entries
@@ -140,12 +160,15 @@ async function toggleExecutionOption(actor, option, token) {
   else selectedCombatOptions.add(option.binding.id);
 }
 
-const withExecutionOptions = (actor, rollData) => ({
-  ...rollData,
-  preselectedModifierItemIds: executionOptionsFor(actor)
-    .filter(option => option.binding.sourceType === "modifier" && selectedCombatOptions.has(option.binding.id))
-    .map(option => option.item.id)
-});
+const withExecutionOptions = (actor, rollData) => {
+  const selected = executionOptionsFor(actor)
+    .filter(option => option.binding.sourceType === "modifier" && selectedCombatOptions.has(option.binding.id));
+  return {
+    ...rollData,
+    preselectedModifierData: selected.map(portableModifierData),
+    gumHudExecutionBindingIds: selected.map(option => option.binding.id)
+  };
+};
 
 function specialDefenseEntries(actor) {
   return favorites(actor)
@@ -322,7 +345,7 @@ function combatOptionsPanelMarkup(actor, options) {
       : (cumulative ? localize("CombatOptions.Combine", "Combináveis") : localize("CombatOptions.Independent", "Independentes"));
     if (!groups.has(key)) groups.set(key, { label, qualifier, cumulative, firstIndex: index, cards: [] });
     const value = option.binding.sourceType === "effect" ? localize("CombatOptions.Effect", "Efeito") : modifierOptionValue(option.item);
-    const preview = option.binding.sourceType === "effect" ? `data-preview-uuid="${escape(option.binding.sourceUuid)}"` : `data-preview-item="${escape(option.item.id)}"`;
+    const preview = `data-preview-uuid="${escape(option.binding.sourceUuid)}"`;
     groups.get(key).cards.push(`<button type="button" class="gum-hud-combat-option-mini ${option.binding.sourceType === "effect" ? "is-effect" : "is-modifier"} ${selected ? "is-selected" : ""} ${index >= 4 ? "is-overflow" : ""}" data-execution-option="${escape(option.binding.id)}" ${preview} aria-pressed="${selected}" title="${escape(option.item.name)} · ${escape(mode)} · ${escape(value)}"><span><img src="${escape(option.item.img)}" alt=""><small>${escape(value)}</small></span><strong>${escape(option.item.name)}</strong></button>`);
   });
   const sections = [...groups.values()].map(group => `<section class="gum-hud-combat-option-group ${group.cumulative ? "is-cumulative" : "is-exclusive"} ${group.firstIndex >= 4 ? "is-overflow" : ""}"><div class="gum-hud-combat-option-group-label"><span>${escape(group.label)}</span><small>${escape(group.qualifier)}</small></div><div class="gum-hud-combat-options-grid">${group.cards.join("")}</div></section>`).join("");
@@ -533,7 +556,7 @@ function render() {
       }
       if (button.hasAttribute("data-config-execution")) {
         const activeManeuver = [...activeManeuverUuids(actor)][0] || null;
-        new ExecutionOptionsConfig({ actorUuid: actor.uuid, maneuverUuid: activeManeuver }).render(true);
+        new ExecutionOptionsConfig({ maneuverUuid: activeManeuver }).render(true);
         return;
       }
       if (button.dataset.executionOption) {
@@ -616,7 +639,7 @@ Hooks.once("init", () => {
   game.settings.register(MODULE, "hideHotbar", { name: "GUMHUD.Settings.HideHotbar.Name", hint: "GUMHUD.Settings.HideHotbar.Hint", scope: "client", config: true, type: Boolean, default: true, onChange: render });
   game.settings.register(MODULE, "equipmentSlots", { name: "GUMHUD.Settings.EquipmentSlots.Name", scope: "client", config: false, type: Object, default: {} });
   game.settings.register(MODULE, "expandedRegions", { name: "GUMHUD.Settings.ExpandedRegions.Name", scope: "client", config: false, type: Object, default: { maneuvers: false, combat: false } });
-  game.settings.register(MODULE, EXECUTION_REGISTRY_SETTING, { scope: "world", config: false, type: Object, default: { version: 1, bindings: [] }, onChange: async () => { await hydrateExecutionSources(); if (pinnedToken) render(); } });
+  game.settings.register(MODULE, EXECUTION_REGISTRY_SETTING, { scope: "world", config: false, type: Object, default: { version: 2, bindings: [] }, onChange: async () => { await hydrateExecutionSources(); if (pinnedToken) render(); } });
   game.settings.register(MODULE, LEGACY_MIGRATION_SETTING, { scope: "world", config: false, type: Boolean, default: false });
   game.settings.registerMenu(MODULE, "executionOptions", {
     name: "GUMHUD.ExecutionConfig.MenuName", hint: "GUMHUD.ExecutionConfig.MenuHint", label: "GUMHUD.ExecutionConfig.MenuLabel",
@@ -644,9 +667,9 @@ async function migrateLegacyCombatOptions() {
     if (!legacyEnabled(config?.enabled)) continue;
     const maneuvers = legacyManeuvers(config);
     for (const maneuverUuid of maneuvers.length ? maneuvers : fallbackManeuvers) {
-      if (bindings.some(binding => binding.maneuverUuid === maneuverUuid && binding.actorUuid === actor.uuid && binding.sourceUuid === item.uuid)) continue;
+      if (bindings.some(binding => binding.maneuverUuid === maneuverUuid && !binding.actorUuid && binding.sourceUuid === item.uuid)) continue;
       bindings.push({
-        id: foundry.utils.randomID(), maneuverUuid, actorUuid: actor.uuid, sourceType: "modifier", sourceUuid: item.uuid,
+        id: foundry.utils.randomID(), maneuverUuid, actorUuid: null, sourceType: "modifier", sourceUuid: item.uuid, sourceData: snapshotExecutionSource(item),
         group: String(config.selection_group || "").trim(), mode: config.selection_mode === "cumulative" ? "cumulative" : "exclusive",
         reset: config.reset === "sticky" ? "sticky" : "after_roll", order: bindings.length
       });
@@ -654,6 +677,21 @@ async function migrateLegacyCombatOptions() {
   }
   await setExecutionRegistry(normalizeExecutionRegistry({ bindings }));
   await game.settings.set(MODULE, LEGACY_MIGRATION_SETTING, true);
+}
+async function upgradeExecutionRegistryToWorldDefaults() {
+  if (!game.user.isGM) return;
+  const raw = game.settings.get(MODULE, EXECUTION_REGISTRY_SETTING) || {};
+  if (Number(raw.version) >= 2 && !(raw.bindings || []).some(binding => binding.actorUuid)) return;
+  const seen = new Set();
+  const bindings = [];
+  for (const original of normalizeExecutionRegistry(raw).bindings) {
+    const source = original.sourceData ? null : await fromUuid(original.sourceUuid).catch(() => null);
+    const binding = { ...original, actorUuid: null, sourceData: original.sourceData || snapshotExecutionSource(source) };
+    const key = `${binding.maneuverUuid}\u0000${binding.sourceUuid}`;
+    if (seen.has(key)) continue;
+    seen.add(key); bindings.push(binding);
+  }
+  await setExecutionRegistry({ version: 2, bindings });
 }
 async function refreshManeuverNames() {
   const items = new Map();
@@ -671,20 +709,20 @@ Hooks.once("ready", async () => {
     configureExecutionOptions: options => { if (game.user.isGM) new ExecutionOptionsConfig(options).render(true); }
   };
   await migrateLegacyCombatOptions();
+  await upgradeExecutionRegistryToWorldDefaults();
   await hydrateExecutionSources();
   await refreshManeuverNames();
 });
 Hooks.on("gum.rollCompleted", context => {
-  const usedIds = Array.isArray(context?.metadata?.rollData?.preselectedModifierItemIds)
-    ? context.metadata.rollData.preselectedModifierItemIds
+  const usedIds = Array.isArray(context?.metadata?.rollData?.gumHudExecutionBindingIds)
+    ? context.metadata.rollData.gumHudExecutionBindingIds
     : [];
   if (!usedIds.length || !context?.actor || context.actor.uuid !== currentToken()?.actor?.uuid) return;
   let changed = false;
   const registry = getExecutionRegistry();
   for (const bindingId of [...selectedCombatOptions]) {
     const binding = registry.bindings.find(entry => entry.id === bindingId);
-    const item = binding ? resolveExecutionSource(binding, context.actor) : null;
-    if (item && usedIds.includes(item.id) && binding.reset !== "sticky" && selectedCombatOptions.delete(bindingId)) changed = true;
+    if (binding && usedIds.includes(binding.id) && binding.reset !== "sticky" && selectedCombatOptions.delete(bindingId)) changed = true;
   }
   if (changed) render();
 });
