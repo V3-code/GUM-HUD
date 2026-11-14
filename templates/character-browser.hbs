@@ -14,9 +14,11 @@
           {{#each group.items as |item|}}
             <article class="gum-hud-resource-card {{#if item.expanded}}is-expanded{{/if}}" data-browser-item="{{item.id}}" data-search="{{item.search}}">
               <div class="gum-hud-resource-main">
-                <img src="{{item.img}}" alt=""/>
+                <span class="gum-hud-resource-icon">
+                  <img src="{{item.img}}" alt=""/>
+                  {{#if item.favorite}}<i class="fas fa-star gum-hud-resource-favorite" aria-label="{{../../favoriteLabel}}" title="{{../../favoriteLabel}}"></i>{{/if}}
+                </span>
                 <strong title="{{item.name}}">{{item.name}}</strong>
-                {{#if item.favorite}}<i class="fas fa-star gum-hud-resource-favorite" aria-label="{{../../favoriteLabel}}"></i>{{/if}}
                 {{#if item.showQuantity}}<small title="{{../../quantityLabel}}">×{{item.quantity}}</small>{{/if}}
                 {{#if item.canRoll}}<button type="button" class="gum-hud-resource-value" data-roll-ability="{{item.id}}" title="{{../../rollLabel}} {{item.name}}"><span>{{../../skillLevelAbbrev}}</span><b>{{item.nh}}</b></button>{{/if}}
                 {{#if item.hasDetails}}<button type="button" class="gum-hud-resource-expand" data-expand-item="{{item.id}}" aria-expanded="{{item.expanded}}"><i class="fas fa-chevron-{{#if item.expanded}}up{{else}}down{{/if}}"></i></button>{{/if}}
