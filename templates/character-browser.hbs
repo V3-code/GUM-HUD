@@ -1,9 +1,9 @@
 <form class="gum-hud-browser-form">
-  <nav class="gum-hud-browser-tabs" aria-label="{{actorName}}">
-    {{#each tabs as |tab|}}<button type="button" data-browser-category="{{tab.id}}" class="{{#if tab.active}}is-active{{/if}}" title="{{tab.label}}"><i class="{{tab.icon}}"></i><span>{{tab.label}}</span></button>{{/each}}
-  </nav>
-  <div class="gum-hud-browser-tools">
-    <label><i class="fas fa-magnifying-glass"></i><input type="search" data-browser-search value="{{query}}" placeholder="{{searchPlaceholder}}" autocomplete="off"/></label>
+  <div class="gum-hud-browser-commandbar">
+    <nav class="gum-hud-browser-tabs" aria-label="{{actorName}}">
+      {{#each tabs as |tab|}}<button type="button" data-browser-category="{{tab.id}}" class="{{#if tab.active}}is-active{{/if}}" title="{{tab.label}}" aria-label="{{tab.label}}"><i class="{{tab.icon}}"></i></button>{{/each}}
+    </nav>
+    <label class="gum-hud-browser-search"><i class="fas fa-magnifying-glass"></i><input type="search" data-browser-search value="{{query}}" placeholder="{{searchPlaceholder}}" autocomplete="off"/></label>
     {{#if isEquipment}}<div class="gum-hud-browser-filters">{{#each equipmentFilters as |filter|}}<button type="button" data-equipment-filter="{{filter.id}}" class="{{#if filter.active}}is-active{{/if}}">{{filter.label}}</button>{{/each}}</div>{{/if}}
   </div>
   <div class="gum-hud-browser-content">
@@ -34,5 +34,4 @@
     {{/each}}
     <p class="gum-hud-browser-empty" data-browser-search-empty hidden>{{empty}}</p>
   </div>
-  <footer><i class="fas fa-circle-info"></i> {{quickViewHint}}</footer>
 </form>

@@ -41,9 +41,14 @@ test("browser supports search, actor organization, equipment filters, and client
   assert.match(template, /data-equipment-filter/);
   assert.match(template, /group\.count/);
   assert.match(template, /data-toggle-browser-group/);
+  assert.match(template, /gum-hud-browser-commandbar/);
+  assert.doesNotMatch(template, /<footer>/);
+  assert.doesNotMatch(template, /gum-hud-browser-tools/);
+  assert.match(css, /\.gum-hud-resource-card/);
   assert.match(browser, /characterBrowserState/);
   assert.match(browser, /collapsedGroups/);
   assert.match(browser, /this\.position/);
+  assert.match(browser, /layoutVersion/);
 });
 
 test("browser localization stays aligned in Portuguese and English", () => {

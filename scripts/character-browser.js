@@ -74,7 +74,8 @@ function orderedGroups(actor, category, items) {
 export class CharacterResourceBrowser extends FormApplication {
   constructor({ actor, category = "skill", actions = {} } = {}, options = {}) {
     const state = game.settings.get(MODULE_ID, "characterBrowserState") || {};
-    const savedPosition = Object.fromEntries(["left", "top", "width", "height"]
+    const positionKeys = Number(state.layoutVersion) >= 2 ? ["left", "top", "width", "height"] : ["left", "top"];
+    const savedPosition = Object.fromEntries(positionKeys
       .filter(key => Number.isFinite(state[key])).map(key => [key, state[key]]));
     super(actor, { ...options, ...savedPosition });
     this.actor = actor;
@@ -92,8 +93,8 @@ export class CharacterResourceBrowser extends FormApplication {
       id: "gum-hud-character-browser",
       template: "modules/gum-hud/templates/character-browser.hbs",
       classes: ["gum-hud-character-browser", "theme-dark"],
-      width: 640,
-      height: 520,
+      width: 580,
+      height: 440,
       resizable: true,
       minimizable: true,
       scrollY: [".gum-hud-browser-content"]
@@ -182,7 +183,6 @@ export class CharacterResourceBrowser extends FormApplication {
       ].map(([id, label]) => ({ id, label, active: id === this.equipmentFilter })),
       empty: localize("Empty", "Nenhum item encontrado."),
       searchPlaceholder: localize("Search", "Buscar…"),
-      quickViewHint: localize("QuickViewHint", "Clique com o botão direito para abrir a visualização rápida."),
       rollLabel: localize("Roll", "Rolar"),
       attackLabel: localize("Attack", "Ataque"),
       damageLabel: localize("Damage", "Dano"),
@@ -259,6 +259,7 @@ export class CharacterResourceBrowser extends FormApplication {
   async _saveState() {
     const position = this.position || {};
     return game.settings.set(MODULE_ID, "characterBrowserState", {
+      layoutVersion: 2,
       category: this.category,
       equipmentFilter: this.equipmentFilter,
       collapsedGroups: [...this.collapsedGroups],

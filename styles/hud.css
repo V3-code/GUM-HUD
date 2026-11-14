@@ -158,59 +158,62 @@ body.gum-hud-hide-hotbar #hotbar { display: none !important; }
   .gum-hud-execution-source { grid-column: span 2; }
 }
 
+.gum-hud-character-browser { min-width: 420px; min-height: 300px; }
+.gum-hud-character-browser .window-header { flex: 0 0 25px; height: 25px; padding: 0 6px; border-bottom: 1px solid #44392d; background: #121419; line-height: 24px; }
+.gum-hud-character-browser .window-title { font-size: 10px; font-weight: 700; letter-spacing: .02em; }
+.gum-hud-character-browser .window-header a { font-size: 10px; }
 .gum-hud-character-browser .window-content { padding: 0; overflow: hidden; background: #17191f; color: #eee4d2; }
 .gum-hud-browser-form { display: flex; flex-direction: column; height: 100%; min-height: 0; }
-.gum-hud-browser-tabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 2px; padding: 4px; border-bottom: 1px solid #70583e70; background: #111318; }
-.gum-hud-browser-tabs button { display: flex; align-items: center; justify-content: center; width: 100%; min-width: 0; min-height: 28px; gap: 5px; margin: 0; padding: 3px 6px; border: 1px solid transparent; border-radius: 3px; background: transparent; color: #bfb4a4; font-size: 10px; }
-.gum-hud-browser-tabs button:hover { border-color: #70583e; color: #fff1d6; }
-.gum-hud-browser-tabs button.is-active { border-color: #a47947; background: #6d503260; color: #f3d7a6; }
-.gum-hud-browser-tabs span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.gum-hud-browser-tools { display: grid; grid-template-columns: minmax(180px, 1fr) auto; align-items: center; gap: 6px; padding: 6px; border-bottom: 1px solid #44392d; background: #1c1f26; }
-.gum-hud-browser-tools > label { display: flex; align-items: center; min-width: 0; min-height: 29px; gap: 7px; padding: 0 9px; border: 1px solid #554839; border-radius: 4px; background: #242830; color: #bfa77f; }
-.gum-hud-browser-tools input { flex: 1 1 auto; width: auto; height: 28px; border: 0; background: transparent; color: #eee4d2; box-shadow: none; }
-.gum-hud-browser-tools input:focus { outline: none; box-shadow: none; }
-.gum-hud-browser-filters { display: flex; flex-wrap: nowrap; gap: 3px; }
-.gum-hud-browser-filters button { flex: 0 0 auto !important; width: auto !important; min-height: 24px; margin: 0; padding: 2px 8px; border: 1px solid #514536; border-radius: 11px; background: #242830; color: #bfb4a4; font-size: 9px; white-space: nowrap; }
-.gum-hud-browser-filters button.is-active { border-color: #a47947; background: #6d5032; color: #fff1d6; }
-.gum-hud-browser-content { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 7px; }
-.gum-hud-browser-group + .gum-hud-browser-group { margin-top: 9px; }
-.gum-hud-browser-group > header { position: sticky; z-index: 2; top: -7px; min-height: 22px; margin: 0 0 4px; padding: 2px 0; background: #17191ff2; }
-.gum-hud-browser-group > header button { display: flex; align-items: center; width: 100%; min-height: 20px; gap: 6px; margin: 0; padding: 2px 3px; border: 0; border-radius: 2px; background: transparent; color: #d8bd91; box-shadow: none; font-size: 9px; font-weight: 700; letter-spacing: .055em; text-transform: uppercase; }
+.gum-hud-browser-commandbar { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; padding: 5px; border-bottom: 1px solid #44392d; background: #15171c; }
+.gum-hud-browser-tabs { display: flex; flex: 0 0 auto; gap: 2px; }
+.gum-hud-browser-tabs button { display: grid; place-items: center; width: 29px; height: 29px; min-width: 29px; min-height: 29px; margin: 0; padding: 0; border: 1px solid transparent; border-radius: 3px; background: transparent; color: #9f978c; font-size: 11px; }
+.gum-hud-browser-tabs button:hover { border-color: #70583e88; background: #25282e; color: #eee4d2; }
+.gum-hud-browser-tabs button.is-active { border-color: #9d7445; background: #6d50324d; color: #e9c78e; }
+.gum-hud-browser-search { display: flex; flex: 1 1 170px; align-items: center; min-width: 130px; height: 29px; gap: 6px; padding: 0 8px; border: 1px solid #494139; border-radius: 3px; background: #20232a; color: #9d8c73; }
+.gum-hud-browser-search input { flex: 1 1 auto; width: 0; height: 27px; border: 0; background: transparent; color: #eee4d2; box-shadow: none; font-size: 10px; }
+.gum-hud-browser-search input:focus { outline: none; box-shadow: none; }
+.gum-hud-browser-filters { display: flex; flex: 0 0 auto; gap: 2px; }
+.gum-hud-browser-filters button { flex: 0 0 auto !important; width: auto !important; min-height: 23px; margin: 0; padding: 2px 6px; border: 1px solid transparent; border-radius: 3px; background: transparent; color: #938b81; font-size: 8px; white-space: nowrap; }
+.gum-hud-browser-filters button:hover { border-color: #514536; color: #d8cab5; }
+.gum-hud-browser-filters button.is-active { border-color: #80613f; background: #6d503244; color: #e4c28b; }
+.gum-hud-browser-content { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 5px; }
+.gum-hud-browser-group + .gum-hud-browser-group { margin-top: 5px; }
+.gum-hud-browser-group > header { position: sticky; z-index: 2; top: -5px; min-height: 18px; margin: 0 0 2px; padding: 1px 0; background: #17191ff2; }
+.gum-hud-browser-group > header button { display: flex; align-items: center; width: 100%; min-height: 17px; gap: 5px; margin: 0; padding: 1px 2px; border: 0; border-radius: 2px; background: transparent; color: #bca884; box-shadow: none; font-size: 8px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; }
 .gum-hud-browser-group > header button:hover { background: #6d503222; color: #f0d4a4; }
 .gum-hud-browser-group > header button::after { content: ""; flex: 1 1 auto; border-top: 1px solid #70583e55; }
 .gum-hud-browser-group > header i { width: 9px; color: #a98b61; font-size: 8px; }
-.gum-hud-browser-group > header small { order: 10; display: grid; place-items: center; min-width: 17px; height: 15px; padding: 0 4px; border: 1px solid #70583e55; border-radius: 8px; color: #a99a84; font-size: 8px; letter-spacing: 0; }
+.gum-hud-browser-group > header small { order: 10; color: #81796f; font-size: 8px; letter-spacing: 0; }
 .gum-hud-browser-group.is-collapsed > header { margin-bottom: 0; }
 .gum-hud-browser-group.is-collapsed .gum-hud-browser-grid { display: none; }
 .gum-hud-browser-form.is-searching .gum-hud-browser-group.is-collapsed .gum-hud-browser-grid { display: grid; }
-.gum-hud-browser-grid { display: grid; grid-template-columns: repeat(2, minmax(250px, 1fr)); gap: 4px; }
-.gum-hud-resource-card { min-width: 0; border: 1px solid #514536aa; border-radius: 4px; background: #22262d; overflow: hidden; transition: border-color 100ms ease, background 100ms ease; }
+.gum-hud-browser-grid { display: grid; grid-template-columns: repeat(2, minmax(220px, 1fr)); gap: 3px; }
+.gum-hud-resource-card { min-width: 0; border: 0; border-radius: 2px; background: #202329; box-shadow: inset 0 -1px #ffffff0a; overflow: hidden; transition: background 100ms ease, box-shadow 100ms ease; }
 .gum-hud-resource-card[hidden] { display: none; }
-.gum-hud-resource-card:hover { border-color: #806746; background: #262a32; }
-.gum-hud-resource-card.is-expanded { grid-column: 1 / -1; border-color: #a47947; }
-.gum-hud-resource-main { display: flex; align-items: center; min-width: 0; min-height: 48px; gap: 5px; padding: 4px; }
-.gum-hud-resource-main > img { flex: 0 0 40px; width: 40px; height: 40px; margin: 0; border: 1px solid #111820; border-radius: 3px; object-fit: cover; }
-.gum-hud-resource-main > strong { display: -webkit-box; flex: 1 1 auto; overflow: hidden; min-width: 0; max-height: 30px; padding: 2px 3px; font-size: 11px; line-height: 14px; overflow-wrap: anywhere; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.gum-hud-resource-card:hover { background: #272a30; box-shadow: inset 2px 0 #9f79446b, inset 0 -1px #ffffff0a; }
+.gum-hud-resource-card.is-expanded { grid-column: 1 / -1; background: #25282e; box-shadow: inset 2px 0 #a47947a8, inset 0 -1px #ffffff0a; }
+.gum-hud-resource-main { display: flex; align-items: center; min-width: 0; min-height: 36px; gap: 4px; padding: 3px; }
+.gum-hud-resource-main > img { flex: 0 0 30px; width: 30px; height: 30px; margin: 0; border: 0; border-radius: 2px; object-fit: cover; }
+.gum-hud-resource-main > strong { display: -webkit-box; flex: 1 1 auto; overflow: hidden; min-width: 0; max-height: 25px; padding: 1px 3px; font-size: 10px; line-height: 12px; overflow-wrap: anywhere; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .gum-hud-resource-main > small { flex: 0 0 auto; color: #c8b89e; font-size: 9px; }
 .gum-hud-resource-favorite { flex: 0 0 auto; color: #c6934d; font-size: 8px; }
-.gum-hud-resource-main button, .gum-hud-resource-actions button { height: auto; margin: 0; border: 1px solid #514536; border-radius: 3px; background: #2d3139; color: #eee4d2; box-shadow: none; }
+.gum-hud-resource-main button, .gum-hud-resource-actions button { height: auto; margin: 0; border: 1px solid transparent; border-radius: 3px; background: #2a2d33; color: #eee4d2; box-shadow: none; }
 .gum-hud-resource-main button:hover, .gum-hud-resource-actions button:hover { background: #6d503260; color: #fff1d6; }
-.gum-hud-resource-value { display: flex; flex: 0 0 46px; flex-direction: column; align-items: center; justify-content: center; align-self: stretch; min-height: 38px; padding: 2px 5px; }
+.gum-hud-resource-value { display: flex; flex: 0 0 39px; flex-direction: column; align-items: center; justify-content: center; align-self: stretch; min-height: 30px; padding: 1px 4px; }
 .gum-hud-resource-value span, .gum-hud-resource-actions small { color: #caa66f; font-size: 7px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
-.gum-hud-resource-value b { font-size: 15px; line-height: 16px; }
-.gum-hud-resource-expand { flex: 0 0 24px; align-self: stretch; min-height: 38px; padding: 0; color: #bba98e; font-size: 9px; }
-.gum-hud-resource-actions { display: flex; flex-wrap: wrap; align-items: stretch; gap: 3px; padding: 4px; border-top: 1px solid #514536; background: #1d2026; }
-.gum-hud-resource-actions > button { display: flex; flex: 0 0 auto; flex-direction: column; align-items: center; justify-content: center; min-width: 65px; min-height: 38px; padding: 3px 7px; border: 1px solid #514536; border-radius: 3px; }
+.gum-hud-resource-value b { font-size: 13px; line-height: 13px; }
+.gum-hud-resource-expand { flex: 0 0 20px; align-self: stretch; min-height: 30px; padding: 0; color: #a89b87; font-size: 8px; }
+.gum-hud-resource-actions { display: flex; flex-wrap: wrap; align-items: stretch; gap: 2px; padding: 3px; border-top: 1px solid #ffffff0b; background: #191b20; }
+.gum-hud-resource-actions > button { display: flex; flex: 0 0 auto; flex-direction: column; align-items: center; justify-content: center; min-width: 58px; min-height: 31px; padding: 2px 6px; border-color: #51453666; }
 .gum-hud-resource-actions b { max-width: 125px; overflow: hidden; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
-.gum-hud-resource-attack { display: flex; flex: 1 1 230px; min-width: 220px; min-height: 42px; border: 1px solid #514536; border-radius: 3px; background: #282c34; overflow: hidden; }
+.gum-hud-resource-attack { display: flex; flex: 1 1 210px; min-width: 200px; min-height: 34px; border: 0; border-radius: 3px; background: #24272d; box-shadow: inset 0 0 0 1px #ffffff0d; overflow: hidden; }
 .gum-hud-resource-attack > span { display: flex; flex: 1 1 auto; align-items: center; overflow: hidden; min-width: 70px; padding: 4px 7px; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
-.gum-hud-resource-attack > button { display: flex; flex: 0 0 auto; flex-direction: column; align-items: center; justify-content: center; min-width: 48px; padding: 2px 6px; }
-.gum-hud-resource-attack > button:last-child { min-width: 82px; }
+.gum-hud-resource-attack > button { display: flex; flex: 0 0 auto; flex-direction: column; align-items: center; justify-content: center; min-width: 42px; padding: 1px 5px; }
+.gum-hud-resource-attack > button:last-child { min-width: 70px; }
 .gum-hud-browser-empty { margin: 22px; color: #aaa39a; font-style: italic; text-align: center; }
-.gum-hud-browser-form > footer { flex: 0 0 auto; padding: 5px 8px; border-top: 1px solid #44392d; background: #15171c; color: #918a81; font-size: 9px; }
 @media (max-width: 560px) {
-  .gum-hud-browser-tabs span { display: none; }
-  .gum-hud-browser-tools { grid-template-columns: minmax(0, 1fr); }
+  .gum-hud-browser-commandbar { align-items: stretch; }
+  .gum-hud-browser-search { order: 2; flex-basis: calc(100% - 125px); }
   .gum-hud-browser-filters { flex-wrap: wrap; }
   .gum-hud-browser-grid { grid-template-columns: minmax(0, 1fr); }
 }
