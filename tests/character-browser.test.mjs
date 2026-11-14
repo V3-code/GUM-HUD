@@ -18,6 +18,8 @@ test("character quick access uses one reusable browser with four direct category
   }
   assert.match(hud, /let characterBrowser = null/);
   assert.match(hud, /new CharacterResourceBrowser/);
+  assert.match(hud, /characterBrowser\.category === category/);
+  assert.match(hud, /closeCharacterBrowser\(\)/);
   assert.match(template, /data-browser-category/);
   assert.match(css, /\.gum-hud-resource-rail/);
 });
@@ -37,6 +39,7 @@ test("browser supports search, actor organization, equipment filters, and client
   assert.match(browser, /dataset\.search\.includes/);
   assert.match(template, /data-browser-search/);
   assert.match(template, /data-equipment-filter/);
+  assert.match(template, /group\.count/);
   assert.match(browser, /characterBrowserState/);
   assert.match(browser, /this\.position/);
 });

@@ -161,7 +161,7 @@ export class CharacterResourceBrowser extends FormApplication {
   async getData() {
     const tabs = [...VALID_CATEGORIES].map(id => ({ id, label: categoryLabel(id), icon: categoryIcon(id), active: id === this.category }));
     const items = this._items();
-    const groups = orderedGroups(this.actor, this.category, items).map(group => ({ ...group, items: group.items.map(item => this._viewItem(item)) }));
+    const groups = orderedGroups(this.actor, this.category, items).map(group => ({ ...group, count: group.items.length, items: group.items.map(item => this._viewItem(item)) }));
     return {
       actorName: this.actor?.name || "",
       category: this.category,

@@ -9,7 +9,7 @@
   <div class="gum-hud-browser-content">
     {{#each groups as |group|}}
       <section class="gum-hud-browser-group" data-browser-group>
-        <header><span>{{group.name}}</span></header>
+        <header><span>{{group.name}}</span><small>{{group.count}}</small></header>
         <div class="gum-hud-browser-grid">
           {{#each group.items as |item|}}
             <article class="gum-hud-resource-card {{#if item.expanded}}is-expanded{{/if}}" data-browser-item="{{item.id}}" data-search="{{item.search}}">

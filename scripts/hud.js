@@ -271,6 +271,11 @@ function characterBrowserActions() {
 function openCharacterBrowser(actor, category) {
   if (!ownsActor(actor)) return;
   if (characterBrowser?.actorUuid === actor.uuid) {
+    if (characterBrowser.category === category) {
+      closeCharacterBrowser();
+      render();
+      return;
+    }
     characterBrowser.setCategory(category);
     if (characterBrowser._minimized) characterBrowser.maximize?.();
     characterBrowser.bringToTop?.();

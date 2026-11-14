@@ -160,22 +160,23 @@ body.gum-hud-hide-hotbar #hotbar { display: none !important; }
 
 .gum-hud-character-browser .window-content { padding: 0; overflow: hidden; background: #17191f; color: #eee4d2; }
 .gum-hud-browser-form { display: flex; flex-direction: column; height: 100%; min-height: 0; }
-.gum-hud-browser-tabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 2px; padding: 5px; border-bottom: 1px solid #70583e70; background: #111318; }
-.gum-hud-browser-tabs button { display: flex; align-items: center; justify-content: center; min-width: 0; min-height: 31px; gap: 6px; margin: 0; padding: 4px 7px; border: 1px solid transparent; border-radius: 3px; background: transparent; color: #bfb4a4; font-size: 11px; }
+.gum-hud-browser-tabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 2px; padding: 4px; border-bottom: 1px solid #70583e70; background: #111318; }
+.gum-hud-browser-tabs button { display: flex; align-items: center; justify-content: center; width: 100%; min-width: 0; min-height: 28px; gap: 5px; margin: 0; padding: 3px 6px; border: 1px solid transparent; border-radius: 3px; background: transparent; color: #bfb4a4; font-size: 10px; }
 .gum-hud-browser-tabs button:hover { border-color: #70583e; color: #fff1d6; }
 .gum-hud-browser-tabs button.is-active { border-color: #a47947; background: #6d503260; color: #f3d7a6; }
 .gum-hud-browser-tabs span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.gum-hud-browser-tools { display: flex; flex-direction: column; gap: 5px; padding: 7px; border-bottom: 1px solid #44392d; background: #1c1f26; }
-.gum-hud-browser-tools > label { display: flex; align-items: center; min-height: 31px; gap: 7px; padding: 0 9px; border: 1px solid #554839; border-radius: 4px; background: #242830; color: #bfa77f; }
+.gum-hud-browser-tools { display: grid; grid-template-columns: minmax(180px, 1fr) auto; align-items: center; gap: 6px; padding: 6px; border-bottom: 1px solid #44392d; background: #1c1f26; }
+.gum-hud-browser-tools > label { display: flex; align-items: center; min-width: 0; min-height: 29px; gap: 7px; padding: 0 9px; border: 1px solid #554839; border-radius: 4px; background: #242830; color: #bfa77f; }
 .gum-hud-browser-tools input { flex: 1 1 auto; width: auto; height: 28px; border: 0; background: transparent; color: #eee4d2; box-shadow: none; }
 .gum-hud-browser-tools input:focus { outline: none; box-shadow: none; }
-.gum-hud-browser-filters { display: flex; flex-wrap: wrap; gap: 4px; }
-.gum-hud-browser-filters button { min-height: 24px; margin: 0; padding: 2px 8px; border: 1px solid #514536; border-radius: 11px; background: #242830; color: #bfb4a4; font-size: 9px; }
+.gum-hud-browser-filters { display: flex; flex-wrap: nowrap; gap: 3px; }
+.gum-hud-browser-filters button { flex: 0 0 auto !important; width: auto !important; min-height: 24px; margin: 0; padding: 2px 8px; border: 1px solid #514536; border-radius: 11px; background: #242830; color: #bfb4a4; font-size: 9px; white-space: nowrap; }
 .gum-hud-browser-filters button.is-active { border-color: #a47947; background: #6d5032; color: #fff1d6; }
 .gum-hud-browser-content { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 7px; }
 .gum-hud-browser-group + .gum-hud-browser-group { margin-top: 9px; }
-.gum-hud-browser-group > header { display: flex; align-items: center; gap: 7px; min-height: 16px; margin-bottom: 4px; color: #d8bd91; font-size: 9px; font-weight: 700; letter-spacing: .055em; text-transform: uppercase; }
+.gum-hud-browser-group > header { position: sticky; z-index: 2; top: -7px; display: flex; align-items: center; gap: 7px; min-height: 20px; margin: 0 0 4px; padding: 3px 0 2px; background: #17191ff2; color: #d8bd91; font-size: 9px; font-weight: 700; letter-spacing: .055em; text-transform: uppercase; }
 .gum-hud-browser-group > header::after { content: ""; flex: 1 1 auto; border-top: 1px solid #70583e55; }
+.gum-hud-browser-group > header small { display: grid; place-items: center; min-width: 17px; height: 15px; padding: 0 4px; border: 1px solid #70583e55; border-radius: 8px; color: #a99a84; font-size: 8px; letter-spacing: 0; }
 .gum-hud-browser-grid { display: grid; grid-template-columns: repeat(2, minmax(250px, 1fr)); gap: 4px; }
 .gum-hud-resource-card { min-width: 0; border: 1px solid #514536; border-radius: 4px; background: #242830; overflow: hidden; }
 .gum-hud-resource-card[hidden] { display: none; }
@@ -203,5 +204,7 @@ body.gum-hud-hide-hotbar #hotbar { display: none !important; }
 .gum-hud-browser-form > footer { flex: 0 0 auto; padding: 5px 8px; border-top: 1px solid #44392d; background: #15171c; color: #918a81; font-size: 9px; }
 @media (max-width: 560px) {
   .gum-hud-browser-tabs span { display: none; }
+  .gum-hud-browser-tools { grid-template-columns: minmax(0, 1fr); }
+  .gum-hud-browser-filters { flex-wrap: wrap; }
   .gum-hud-browser-grid { grid-template-columns: minmax(0, 1fr); }
 }
