@@ -81,6 +81,7 @@ export class CharacterResourceBrowser extends FormApplication {
     this.actorUuid = actor?.uuid;
     this.category = VALID_CATEGORIES.has(category) ? category : (VALID_CATEGORIES.has(state.category) ? state.category : "skill");
     this.equipmentFilter = state.equipmentFilter || "all";
+    this.collapsedGroups = new Set(Array.isArray(state.collapsedGroups) ? state.collapsedGroups : []);
     this.query = "";
     this.expandedItemId = null;
     this.actions = actions;
@@ -161,7 +162,13 @@ export class CharacterResourceBrowser extends FormApplication {
   async getData() {
     const tabs = [...VALID_CATEGORIES].map(id => ({ id, label: categoryLabel(id), icon: categoryIcon(id), active: id === this.category }));
     const items = this._items();
-    const groups = orderedGroups(this.actor, this.category, items).map(group => ({ ...group, count: group.items.length, items: group.items.map(item => this._viewItem(item)) }));
+    const groups = orderedGroups(this.actor, this.category, items).map(group => ({
+      ...group,
+      count: group.items.length,
+      collapseKey: `${this.category}:${group.id}`,
+      collapsed: this.collapsedGroups.has(`${this.category}:${group.id}`),
+      items: group.items.map(item => this._viewItem(item))
+    }));
     return {
       actorName: this.actor?.name || "",
       category: this.category,
@@ -188,6 +195,7 @@ export class CharacterResourceBrowser extends FormApplication {
 
   _applySearch(html) {
     const query = this.query.toLocaleLowerCase();
+    html.find(".gum-hud-browser-form").toggleClass("is-searching", Boolean(query));
     html.find("[data-browser-item]").each((_index, element) => { element.hidden = Boolean(query && !element.dataset.search.includes(query)); });
     html.find("[data-browser-group]").each((_index, element) => { element.hidden = !element.querySelector("[data-browser-item]:not([hidden])"); });
     const any = html[0]?.querySelector("[data-browser-item]:not([hidden])");
@@ -204,6 +212,13 @@ export class CharacterResourceBrowser extends FormApplication {
       this.render(false);
     });
     html.on("input", "[data-browser-search]", event => { this.query = event.currentTarget.value; this._applySearch(html); });
+    html.on("click", "[data-toggle-browser-group]", event => {
+      const key = event.currentTarget.dataset.toggleBrowserGroup;
+      if (this.collapsedGroups.has(key)) this.collapsedGroups.delete(key);
+      else this.collapsedGroups.add(key);
+      this._saveState();
+      this.render(false);
+    });
     html.on("contextmenu", "[data-browser-item]", async event => {
       event.preventDefault(); event.stopPropagation();
       const item = this.actor?.items?.get(event.currentTarget.dataset.browserItem);
@@ -246,6 +261,7 @@ export class CharacterResourceBrowser extends FormApplication {
     return game.settings.set(MODULE_ID, "characterBrowserState", {
       category: this.category,
       equipmentFilter: this.equipmentFilter,
+      collapsedGroups: [...this.collapsedGroups],
       left: position.left,
       top: position.top,
       width: position.width,

@@ -174,25 +174,31 @@ body.gum-hud-hide-hotbar #hotbar { display: none !important; }
 .gum-hud-browser-filters button.is-active { border-color: #a47947; background: #6d5032; color: #fff1d6; }
 .gum-hud-browser-content { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 7px; }
 .gum-hud-browser-group + .gum-hud-browser-group { margin-top: 9px; }
-.gum-hud-browser-group > header { position: sticky; z-index: 2; top: -7px; display: flex; align-items: center; gap: 7px; min-height: 20px; margin: 0 0 4px; padding: 3px 0 2px; background: #17191ff2; color: #d8bd91; font-size: 9px; font-weight: 700; letter-spacing: .055em; text-transform: uppercase; }
-.gum-hud-browser-group > header::after { content: ""; flex: 1 1 auto; border-top: 1px solid #70583e55; }
-.gum-hud-browser-group > header small { display: grid; place-items: center; min-width: 17px; height: 15px; padding: 0 4px; border: 1px solid #70583e55; border-radius: 8px; color: #a99a84; font-size: 8px; letter-spacing: 0; }
+.gum-hud-browser-group > header { position: sticky; z-index: 2; top: -7px; min-height: 22px; margin: 0 0 4px; padding: 2px 0; background: #17191ff2; }
+.gum-hud-browser-group > header button { display: flex; align-items: center; width: 100%; min-height: 20px; gap: 6px; margin: 0; padding: 2px 3px; border: 0; border-radius: 2px; background: transparent; color: #d8bd91; box-shadow: none; font-size: 9px; font-weight: 700; letter-spacing: .055em; text-transform: uppercase; }
+.gum-hud-browser-group > header button:hover { background: #6d503222; color: #f0d4a4; }
+.gum-hud-browser-group > header button::after { content: ""; flex: 1 1 auto; border-top: 1px solid #70583e55; }
+.gum-hud-browser-group > header i { width: 9px; color: #a98b61; font-size: 8px; }
+.gum-hud-browser-group > header small { order: 10; display: grid; place-items: center; min-width: 17px; height: 15px; padding: 0 4px; border: 1px solid #70583e55; border-radius: 8px; color: #a99a84; font-size: 8px; letter-spacing: 0; }
+.gum-hud-browser-group.is-collapsed > header { margin-bottom: 0; }
+.gum-hud-browser-group.is-collapsed .gum-hud-browser-grid { display: none; }
+.gum-hud-browser-form.is-searching .gum-hud-browser-group.is-collapsed .gum-hud-browser-grid { display: grid; }
 .gum-hud-browser-grid { display: grid; grid-template-columns: repeat(2, minmax(250px, 1fr)); gap: 4px; }
-.gum-hud-resource-card { min-width: 0; border: 1px solid #514536; border-radius: 4px; background: #242830; overflow: hidden; }
+.gum-hud-resource-card { min-width: 0; border: 1px solid #514536aa; border-radius: 4px; background: #22262d; overflow: hidden; transition: border-color 100ms ease, background 100ms ease; }
 .gum-hud-resource-card[hidden] { display: none; }
-.gum-hud-resource-card:hover { border-color: #806746; }
+.gum-hud-resource-card:hover { border-color: #806746; background: #262a32; }
 .gum-hud-resource-card.is-expanded { grid-column: 1 / -1; border-color: #a47947; }
-.gum-hud-resource-main { display: flex; align-items: center; min-width: 0; min-height: 44px; }
-.gum-hud-resource-main > img { flex: 0 0 42px; width: 42px; height: 42px; margin: 1px; border-radius: 2px; object-fit: cover; }
-.gum-hud-resource-main > strong { display: -webkit-box; flex: 1 1 auto; overflow: hidden; min-width: 0; max-height: 30px; padding: 3px 7px; font-size: 11px; line-height: 14px; overflow-wrap: anywhere; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.gum-hud-resource-main { display: flex; align-items: center; min-width: 0; min-height: 48px; gap: 5px; padding: 4px; }
+.gum-hud-resource-main > img { flex: 0 0 40px; width: 40px; height: 40px; margin: 0; border: 1px solid #111820; border-radius: 3px; object-fit: cover; }
+.gum-hud-resource-main > strong { display: -webkit-box; flex: 1 1 auto; overflow: hidden; min-width: 0; max-height: 30px; padding: 2px 3px; font-size: 11px; line-height: 14px; overflow-wrap: anywhere; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .gum-hud-resource-main > small { flex: 0 0 auto; color: #c8b89e; font-size: 9px; }
 .gum-hud-resource-favorite { flex: 0 0 auto; color: #c6934d; font-size: 8px; }
-.gum-hud-resource-main button, .gum-hud-resource-actions button { height: auto; margin: 0; border: 0; border-left: 1px solid #514536; border-radius: 0; background: #2d3139; color: #eee4d2; box-shadow: none; }
+.gum-hud-resource-main button, .gum-hud-resource-actions button { height: auto; margin: 0; border: 1px solid #514536; border-radius: 3px; background: #2d3139; color: #eee4d2; box-shadow: none; }
 .gum-hud-resource-main button:hover, .gum-hud-resource-actions button:hover { background: #6d503260; color: #fff1d6; }
-.gum-hud-resource-value { display: flex; flex: 0 0 52px; flex-direction: column; align-items: center; justify-content: center; align-self: stretch; padding: 2px 5px; }
+.gum-hud-resource-value { display: flex; flex: 0 0 46px; flex-direction: column; align-items: center; justify-content: center; align-self: stretch; min-height: 38px; padding: 2px 5px; }
 .gum-hud-resource-value span, .gum-hud-resource-actions small { color: #caa66f; font-size: 7px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
 .gum-hud-resource-value b { font-size: 15px; line-height: 16px; }
-.gum-hud-resource-expand { flex: 0 0 26px; align-self: stretch; padding: 0; color: #bba98e; font-size: 9px; }
+.gum-hud-resource-expand { flex: 0 0 24px; align-self: stretch; min-height: 38px; padding: 0; color: #bba98e; font-size: 9px; }
 .gum-hud-resource-actions { display: flex; flex-wrap: wrap; align-items: stretch; gap: 3px; padding: 4px; border-top: 1px solid #514536; background: #1d2026; }
 .gum-hud-resource-actions > button { display: flex; flex: 0 0 auto; flex-direction: column; align-items: center; justify-content: center; min-width: 65px; min-height: 38px; padding: 3px 7px; border: 1px solid #514536; border-radius: 3px; }
 .gum-hud-resource-actions b { max-width: 125px; overflow: hidden; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }

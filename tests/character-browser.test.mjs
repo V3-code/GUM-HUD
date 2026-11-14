@@ -40,7 +40,9 @@ test("browser supports search, actor organization, equipment filters, and client
   assert.match(template, /data-browser-search/);
   assert.match(template, /data-equipment-filter/);
   assert.match(template, /group\.count/);
+  assert.match(template, /data-toggle-browser-group/);
   assert.match(browser, /characterBrowserState/);
+  assert.match(browser, /collapsedGroups/);
   assert.match(browser, /this\.position/);
 });
 

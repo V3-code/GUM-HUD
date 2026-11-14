@@ -8,8 +8,8 @@
   </div>
   <div class="gum-hud-browser-content">
     {{#each groups as |group|}}
-      <section class="gum-hud-browser-group" data-browser-group>
-        <header><span>{{group.name}}</span><small>{{group.count}}</small></header>
+      <section class="gum-hud-browser-group {{#if group.collapsed}}is-collapsed{{/if}}" data-browser-group>
+        <header><button type="button" data-toggle-browser-group="{{group.collapseKey}}" aria-expanded="{{#unless group.collapsed}}true{{else}}false{{/unless}}"><i class="fas fa-chevron-{{#if group.collapsed}}right{{else}}down{{/if}}"></i><span>{{group.name}}</span><small>{{group.count}}</small></button></header>
         <div class="gum-hud-browser-grid">
           {{#each group.items as |item|}}
             <article class="gum-hud-resource-card {{#if item.expanded}}is-expanded{{/if}}" data-browser-item="{{item.id}}" data-search="{{item.search}}">
