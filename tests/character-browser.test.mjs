@@ -93,3 +93,14 @@ test("active effects use the character browser and the loadout keeps six indepen
   assert.match(css, /\.gum-hud-slot\.is-inactive/);
   assert.deepEqual(Object.keys(portuguese.GUMHUD.Effects).sort(), Object.keys(english.GUMHUD.Effects).sort());
 });
+
+test("client HUD preferences can restore and stack above the Foundry hotbar", () => {
+  assert.match(hud, /data-hud-preferences/);
+  assert.match(hud, /data-toggle-foundry-hotbar/);
+  assert.match(hud, /game\.settings\.set\(MODULE, "hideHotbar"/);
+  assert.match(hud, /window\.innerHeight - hotbarTop \+ 8/);
+  assert.match(hud, /Hooks\.on\("renderHotbar"/);
+  assert.match(css, /\.gum-hud-preferences-panel/);
+  assert.match(css, /\.gum-hud-resource-divider/);
+  assert.deepEqual(Object.keys(portuguese.GUMHUD.Preferences).sort(), Object.keys(english.GUMHUD.Preferences).sort());
+});

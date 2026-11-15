@@ -26,6 +26,7 @@ let combatOptionsManeuverKey = "";
 let characterBrowser = null;
 let characterBrowserQueue = Promise.resolve();
 let characterBrowserClosePromise = Promise.resolve();
+let preferencesOpen = false;
 const VISIBLE_MANEUVERS = 15;
 
 const escape = value => String(value ?? "").replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
@@ -571,6 +572,7 @@ function render() {
   const actor = tokenForHud.actor;
   if (selectionActorUuid !== actor.uuid) {
     openSelection = null;
+    preferencesOpen = false;
     selectedCombatOptions = new Set();
     combatOptionsPanelOpen = false;
     combatOptionsPanelExpanded = false;
@@ -642,8 +644,10 @@ function render() {
     ["equipment", "fa-toolbox", localize("CharacterBrowser.Equipment", "Equipamentos"), 0],
     ["effect", "fa-sparkles", localize("CharacterBrowser.Effects", "Efeitos"), activeEffects.length]
   ].map(([category, icon, label, count]) => `<button type="button" data-character-browser="${category}" class="${characterBrowser?.actorUuid === actor.uuid && characterBrowser.category === category ? "is-active" : ""}" title="${escape(count ? `${label}: ${count}` : label)}"><i class="fas ${icon}" aria-hidden="true"></i>${count ? `<b>${count}</b>` : ""}</button>`).join("");
+  const showFoundryHotbar = !game.settings.get(MODULE, "hideHotbar");
+  const preferences = `<span class="gum-hud-resource-divider" aria-hidden="true"></span><button type="button" class="gum-hud-preferences-trigger ${preferencesOpen ? "is-active" : ""}" data-hud-preferences aria-expanded="${preferencesOpen}" title="${escape(localize("Preferences.Open", "Configurar HUD"))}"><i class="fas fa-cog" aria-hidden="true"></i></button><aside class="gum-hud-preferences-panel ${preferencesOpen ? "is-open" : ""}" aria-label="${escape(localize("Preferences.Title", "Preferências do HUD"))}"><header><i class="fas fa-cog" aria-hidden="true"></i><span>${localize("Preferences.Title", "Preferências do HUD")}</span></header><button type="button" class="gum-hud-preference-toggle ${showFoundryHotbar ? "is-enabled" : ""}" data-toggle-foundry-hotbar aria-pressed="${showFoundryHotbar}"><span><strong>${localize("Preferences.FoundryHotbar", "Hotbar do Foundry")}</strong><small>${localize("Preferences.FoundryHotbarHint", "Exibir abaixo do GUM HUD")}</small></span><i aria-hidden="true"><b></b></i></button></aside>`;
   const identityVitals = `${identityResource(hp, "HP")}${identityResource(fp, "FP")}${identityMovement(actor)}`;
-  root.innerHTML = `<div class="gum-hud-region gum-hud-identity-region gum-hud-summary"><div class="gum-hud-loadout" aria-label="${escape(localize("Identity.QuickEquipment", "Equipamentos rápidos"))}">${equipmentSlots}</div><img src="${escape(tokenForHud.document.texture?.src || actor.img)}" alt=""><div class="gum-hud-summary-info"><strong>${escape(actor.name)}</strong><div class="gum-hud-vitals">${identityVitals}</div></div><button data-close title="${escape(localize("General.Close", "Fechar"))}">×</button></div><nav class="gum-hud-resource-rail" aria-label="${escape(localize("CharacterBrowser.Access", "Acesso rápido"))}">${resourceRail}</nav><div class="gum-hud-region gum-hud-maneuver-region ${regionIsExpanded("maneuvers") ? "is-expanded" : ""}">${maneuverChrome(localize("Maneuvers.Title", "MANOBRAS"), maneuverExpandable, combatOptions, actor)}<div class="gum-hud-maneuvers">${maneuvers || `<small>${localize("Maneuvers.SelectGroup", "Selecione um grupo nas configurações.")}</small>`}</div><div class="gum-hud-maneuver-palette" hidden>${extraManeuvers}</div>${combatOptionsPanelMarkup(actor, combatOptions)}</div><div class="gum-hud-region gum-hud-combat ${regionIsExpanded("combat") ? "is-expanded" : ""}">${regionChrome(localize("Combat.Title", "OPÇÕES DE COMBATE"), "combat", combatExpandable)}<div class="gum-hud-cards">${itemCards || `<small>${localize("Combat.Empty", "Arraste equipamentos para os slots ou marque outras opções como favoritas.")}</small>`}</div><div class="gum-hud-expanded"></div></div><div class="gum-hud-region gum-hud-defense-region">${regionChrome(localize("Defense.Title", "DEFESAS ATIVAS"), "defenses", false)}<div class="gum-hud-defenses"></div><div class="gum-hud-expanded"></div></div>${consumableRegion}`;
+  root.innerHTML = `<div class="gum-hud-region gum-hud-identity-region gum-hud-summary"><div class="gum-hud-loadout" aria-label="${escape(localize("Identity.QuickEquipment", "Equipamentos rápidos"))}">${equipmentSlots}</div><img src="${escape(tokenForHud.document.texture?.src || actor.img)}" alt=""><div class="gum-hud-summary-info"><strong>${escape(actor.name)}</strong><div class="gum-hud-vitals">${identityVitals}</div></div><button data-close title="${escape(localize("General.Close", "Fechar"))}">×</button></div><nav class="gum-hud-resource-rail" aria-label="${escape(localize("CharacterBrowser.Access", "Acesso rápido"))}">${resourceRail}${preferences}</nav><div class="gum-hud-region gum-hud-maneuver-region ${regionIsExpanded("maneuvers") ? "is-expanded" : ""}">${maneuverChrome(localize("Maneuvers.Title", "MANOBRAS"), maneuverExpandable, combatOptions, actor)}<div class="gum-hud-maneuvers">${maneuvers || `<small>${localize("Maneuvers.SelectGroup", "Selecione um grupo nas configurações.")}</small>`}</div><div class="gum-hud-maneuver-palette" hidden>${extraManeuvers}</div>${combatOptionsPanelMarkup(actor, combatOptions)}</div><div class="gum-hud-region gum-hud-combat ${regionIsExpanded("combat") ? "is-expanded" : ""}">${regionChrome(localize("Combat.Title", "OPÇÕES DE COMBATE"), "combat", combatExpandable)}<div class="gum-hud-cards">${itemCards || `<small>${localize("Combat.Empty", "Arraste equipamentos para os slots ou marque outras opções como favoritas.")}</small>`}</div><div class="gum-hud-expanded"></div></div><div class="gum-hud-region gum-hud-defense-region">${regionChrome(localize("Defense.Title", "DEFESAS ATIVAS"), "defenses", false)}<div class="gum-hud-defenses"></div><div class="gum-hud-expanded"></div></div>${consumableRegion}`;
   if (openSelection?.kind === "defense" && !defenseEntries(actor, openSelection.key).length) openSelection = null;
   if (openSelection?.kind === "specialDefense" && !specialDefenses.length) openSelection = null;
   if (openSelection?.kind === "consumables" && !consumables.length) openSelection = null;
@@ -704,8 +708,10 @@ function render() {
     const button = event.target.closest("button");
     if (!button) return;
     try {
-      if (button.hasAttribute("data-close")) { pinnedToken = null; closeCharacterBrowser(); render(); return; }
+      if (button.hasAttribute("data-close")) { pinnedToken = null; preferencesOpen = false; closeCharacterBrowser(); render(); return; }
       if (button.dataset.characterBrowser) { await requestCharacterBrowser(actor, button.dataset.characterBrowser); return; }
+      if (button.hasAttribute("data-hud-preferences")) { preferencesOpen = !preferencesOpen; render(); return; }
+      if (button.hasAttribute("data-toggle-foundry-hotbar")) { await game.settings.set(MODULE, "hideHotbar", !game.settings.get(MODULE, "hideHotbar")); return; }
       if (button.dataset.toggleRegion) {
         const key = button.dataset.toggleRegion;
         const expanded = { ...game.settings.get(MODULE, "expandedRegions") };
@@ -848,7 +854,7 @@ Hooks.once("init", () => {
     name: "GUMHUD.ExecutionConfig.MenuName", hint: "GUMHUD.ExecutionConfig.MenuHint", label: "GUMHUD.ExecutionConfig.MenuLabel",
     icon: "fas fa-crosshairs", type: ExecutionOptionsConfig, restricted: true
   });
-  game.keybindings.register(MODULE, "toggle", { name: "GUMHUD.Keybindings.Toggle", editable: [{ key: "KeyH", modifiers: ["CONTROL", "SHIFT"] }], onDown: () => { if (pinnedToken) { pinnedToken = null; closeCharacterBrowser(); render(); } else openHud(null); return true; } });
+  game.keybindings.register(MODULE, "toggle", { name: "GUMHUD.Keybindings.Toggle", editable: [{ key: "KeyH", modifiers: ["CONTROL", "SHIFT"] }], onDown: () => { if (pinnedToken) { pinnedToken = null; preferencesOpen = false; closeCharacterBrowser(); render(); } else openHud(null); return true; } });
 });
 
 const legacyEnabled = value => value === true || value === 1 || ["true", "1", "on"].includes(String(value ?? "").trim().toLocaleLowerCase());
@@ -908,7 +914,7 @@ async function refreshManeuverNames() {
 
 Hooks.once("ready", async () => {
   game.gumHud = {
-    maneuverItems: new Map(), open: token => openHud(token), close: () => { pinnedToken = null; closeCharacterBrowser(); render(); },
+    maneuverItems: new Map(), open: token => openHud(token), close: () => { pinnedToken = null; preferencesOpen = false; closeCharacterBrowser(); render(); },
     configureExecutionOptions: options => { if (game.user.isGM) new ExecutionOptionsConfig(options).render(true); }
   };
   await migrateLegacyCombatOptions();
@@ -943,6 +949,7 @@ for (const hook of ["createActiveEffect", "deleteActiveEffect", "updateActiveEff
   if (actorUuid === characterBrowser?.actorUuid) characterBrowser.render(false);
 });
 Hooks.on("canvasReady", () => { if (pinnedToken) render(); if (characterBrowser) characterBrowser.render(false); });
+Hooks.on("renderHotbar", () => { const root = document.getElementById("gum-hud-bar"); if (root) requestAnimationFrame(() => fitToFoundry(root)); });
 for (const hook of ["createItem", "updateItem", "deleteItem"]) Hooks.on(hook, item => {
   if (!pinnedToken) return;
   const relevantSource = getExecutionRegistry().bindings.some(binding => binding.sourceUuid === item?.uuid);
