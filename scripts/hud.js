@@ -57,8 +57,9 @@ function openHud(token, { notify = true } = {}) {
 async function closeCharacterBrowser() {
   const browser = characterBrowser;
   characterBrowser = null;
-  if (browser) characterBrowserClosePromise = browser.close({ animate: false })
-    .catch(error => console.error("GUM HUD | Closing character browser", error));
+  if (browser) characterBrowserClosePromise = browser.close()
+    .catch(error => console.error("GUM HUD | Closing character browser", error))
+    .finally(() => document.getElementById(browser.id)?.remove());
   await characterBrowserClosePromise;
 }
 function retainHudOwnership(actor, { notify = true } = {}) {

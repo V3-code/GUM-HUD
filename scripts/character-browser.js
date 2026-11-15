@@ -275,8 +275,8 @@ export class CharacterResourceBrowser extends FormApplication {
   }
 
   async close(options = {}) {
-    await this._saveState();
     const result = await super.close(options);
+    this._saveState().catch(error => console.error("GUM HUD | Saving character browser state", error));
     this.actions.closed?.(this);
     return result;
   }

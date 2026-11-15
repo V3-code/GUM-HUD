@@ -21,6 +21,8 @@ test("character quick access uses one reusable browser with four direct category
   assert.match(hud, /characterBrowser\.category === category/);
   assert.match(hud, /characterBrowserQueue/);
   assert.match(hud, /characterBrowserClosePromise/);
+  assert.doesNotMatch(hud, /browser\.close\(\{ animate: false \}\)/);
+  assert.match(hud, /document\.getElementById\(browser\.id\)\?\.remove/);
   assert.match(hud, /requestCharacterBrowser/);
   assert.match(browser, /whenRendered/);
   assert.match(hud, /closeCharacterBrowser\(\)/);
@@ -57,6 +59,8 @@ test("browser supports search, actor organization, equipment filters, and client
   assert.match(browser, /collapsedGroups/);
   assert.match(browser, /this\.position/);
   assert.match(browser, /layoutVersion/);
+  assert.match(browser, /await super\.close\(options\)/);
+  assert.match(browser, /_saveState\(\)\.catch/);
 });
 
 test("browser localization stays aligned in Portuguese and English", () => {
