@@ -71,6 +71,8 @@ export class ExecutionOptionsConfig extends FormApplication {
       if (!binding) return;
       binding[event.currentTarget.dataset.bindingField] = event.currentTarget.value;
       await setExecutionRegistry(upsertExecutionBinding(getExecutionRegistry(), binding)); await hydrateExecutionSources();
+      row?.classList.add("is-saved");
+      window.setTimeout(() => row?.classList.remove("is-saved"), 700);
     });
     html.on("dragover", event => event.preventDefault());
     html.on("drop", async event => {

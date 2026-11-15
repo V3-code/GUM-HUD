@@ -368,10 +368,11 @@ function categoryMarkup(actor, type) {
 function expandedMarkup(actor) {
   if (!openSelection) return "";
   if (openSelection.kind === "defense") {
-    return groupedDefenses(actor, openSelection.key).map(({ item, options }) => `<div class="gum-hud-domino gum-hud-defense-domino" data-preview-item="${escape(item.id)}" aria-label="${escape(item.name)}"><div class="gum-hud-domino-source" title="${escape(item.name)}"><img src="${escape(item.img)}" alt=""><span>${escape(item.name)}</span></div><div class="gum-hud-domino-options">${options.map(row => `<button class="gum-hud-domino-defense" data-defense-item="${escape(item.id)}" data-defense-attack="${escape(row.id)}" data-defense-kind="${openSelection.key}" title="${escape(item.name)} · ${escape(row.skill)} · ${escape(row.modes.join(", "))}: ${escape(row.value)}"><strong>${escape(row.value)}</strong><span>${escape(row.skill)}</span></button>`).join("")}</div></div>`).join("");
+    const defenseLabel = openSelection.key === "final_parry" ? localize("Defense.Parry", "Aparar") : localize("Defense.Block", "Bloqueio");
+    return groupedDefenses(actor, openSelection.key).map(({ item, options }) => `<section class="gum-hud-domino gum-hud-defense-domino" data-preview-item="${escape(item.id)}" aria-label="${escape(item.name)}"><div class="gum-hud-defense-domino-heading" title="${escape(item.name)}"><img src="${escape(item.img)}" alt=""><strong>${escape(item.name)}</strong><small>${escape(defenseLabel)}</small></div><div class="gum-hud-domino-options">${options.map(row => `<button class="gum-hud-domino-defense" data-defense-item="${escape(item.id)}" data-defense-attack="${escape(row.id)}" data-defense-kind="${openSelection.key}" title="${escape(item.name)} · ${escape(row.skill)} · ${escape(row.modes.join(", "))}: ${escape(row.value)}"><strong>${escape(row.value)}</strong><span>${escape(row.skill)}</span></button>`).join("")}</div></section>`).join("");
   }
   if (openSelection.kind === "specialDefense") {
-    return specialDefenseEntries(actor).map(({ item, ruleLabel, nh, value }) => `<div class="gum-hud-domino gum-hud-special-defense-domino" data-preview-item="${escape(item.id)}" aria-label="${escape(item.name)}"><div class="gum-hud-domino-source" title="${escape(item.name)}"><img src="${escape(item.img)}" alt=""><span>${escape(item.name)}</span></div><div class="gum-hud-domino-options"><button class="gum-hud-domino-defense" data-special-defense="${escape(item.id)}" ${value == null ? "disabled" : ""} title="${escape(item.name)} · ${escape(ruleLabel)}${Number.isFinite(nh) ? ` · NH ${escape(nh)}` : ""}: ${escape(value ?? "—")}"><strong>${escape(value ?? "—")}</strong><span>${escape(ruleLabel)}</span></button></div></div>`).join("");
+    return specialDefenseEntries(actor).map(({ item, ruleLabel, nh, value }) => `<section class="gum-hud-domino gum-hud-defense-domino gum-hud-special-defense-domino" data-preview-item="${escape(item.id)}" aria-label="${escape(item.name)}"><div class="gum-hud-defense-domino-heading" title="${escape(item.name)}"><img src="${escape(item.img)}" alt=""><strong>${escape(item.name)}</strong><small>${escape(localize("Defense.Special", "Especial"))}</small></div><div class="gum-hud-domino-options"><button class="gum-hud-domino-defense" data-special-defense="${escape(item.id)}" ${value == null ? "disabled" : ""} title="${escape(item.name)} · ${escape(ruleLabel)}${Number.isFinite(nh) ? ` · NH ${escape(nh)}` : ""}: ${escape(value ?? "—")}"><strong>${escape(value ?? "—")}</strong><span>${escape(ruleLabel)}</span></button></div></section>`).join("");
   }
   if (openSelection.kind === "consumables") {
     return consumablesFor(actor).map(item => {
@@ -467,6 +468,20 @@ function fitToFoundry(root) {
   const hotbar = document.querySelector("#hotbar");
   const hotbarTop = hotbar?.getClientRects().length ? hotbar.getBoundingClientRect().top : window.innerHeight;
   root.style.bottom = `${hotbarTop < window.innerHeight - 20 ? Math.max(12, window.innerHeight - hotbarTop + 8) : 12}px`;
+  fitExpandedPanels(root);
+}
+
+function fitExpandedPanels(root) {
+  const panels = root.querySelectorAll(".gum-hud-expanded:not(:empty), .gum-hud-maneuver-palette:not([hidden]), .gum-hud-combat-options-panel.is-open:not(.is-suspended)");
+  for (const panel of panels) {
+    panel.classList.toggle("is-multicolumn", panel.classList.contains("gum-hud-expanded") && panel.children.length > 6 && window.innerWidth >= 1100);
+    panel.style.removeProperty("transform");
+    const rect = panel.getBoundingClientRect();
+    const leftCorrection = Math.max(0, 8 - rect.left);
+    const rightCorrection = Math.max(0, rect.right - (window.innerWidth - 8));
+    const delta = leftCorrection - rightCorrection;
+    if (delta) panel.style.transform = `translateX(${delta}px)`;
+  }
 }
 
 function render() {
