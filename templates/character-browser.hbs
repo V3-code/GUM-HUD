@@ -1,7 +1,7 @@
 <form class="gum-hud-browser-form">
   <div class="gum-hud-browser-commandbar">
     <nav class="gum-hud-browser-tabs" aria-label="{{actorName}}">
-      {{#each tabs as |tab|}}<button type="button" data-browser-category="{{tab.id}}" class="{{#if tab.active}}is-active{{/if}}" title="{{tab.label}}" aria-label="{{tab.label}}"><i class="{{tab.icon}}"></i></button>{{/each}}
+      {{#each tabs as |tab|}}<button type="button" data-browser-category="{{tab.id}}" class="{{#if tab.active}}is-active{{/if}}" title="{{tab.label}}" aria-label="{{tab.label}}"><i class="{{tab.icon}}"></i>{{#if tab.count}}<b>{{tab.count}}</b>{{/if}}</button>{{/each}}
     </nav>
     <label class="gum-hud-browser-search"><i class="fas fa-magnifying-glass"></i><input type="search" data-browser-search value="{{query}}" placeholder="{{searchPlaceholder}}" autocomplete="off"/></label>
     {{#if isEquipment}}<div class="gum-hud-browser-filters">{{#each equipmentFilters as |filter|}}<button type="button" data-equipment-filter="{{filter.id}}" class="{{#if filter.active}}is-active{{/if}}">{{filter.label}}</button>{{/each}}</div>{{/if}}
@@ -12,7 +12,7 @@
         <header><button type="button" data-toggle-browser-group="{{group.collapseKey}}" aria-expanded="{{#unless group.collapsed}}true{{else}}false{{/unless}}"><i class="fas fa-chevron-{{#if group.collapsed}}right{{else}}down{{/if}}"></i><span>{{group.name}}</span><small>{{group.count}}</small></button></header>
         <div class="gum-hud-browser-grid">
           {{#each group.items as |item|}}
-            <article class="gum-hud-resource-card {{#if item.expanded}}is-expanded{{/if}}" data-browser-item="{{item.id}}" data-search="{{item.search}}">
+            <article class="gum-hud-resource-card {{#if item.expanded}}is-expanded{{/if}} {{#if item.isEffect}}is-effect{{/if}}" data-browser-item="{{item.id}}" data-search="{{item.search}}">
               <div class="gum-hud-resource-main">
                 <span class="gum-hud-resource-icon">
                   <img src="{{item.img}}" alt=""/>
@@ -20,6 +20,7 @@
                 </span>
                 <span class="gum-hud-resource-identity">
                   <strong title="{{item.name}}">{{item.name}}</strong>
+                  {{#if item.subtitle}}<small>{{item.subtitle}}</small>{{/if}}
                   {{#if item.usesAttack}}<button type="button" class="gum-hud-resource-inline-action" data-roll-ability-attack="{{item.id}}"><small>{{../../attackLabel}}</small><b>{{item.attackNh}}</b></button>{{/if}}
                   {{#if item.directDamage}}<button type="button" class="gum-hud-resource-inline-action" data-roll-damage-item="{{item.id}}"><small>{{../../damageLabel}}</small><b>{{item.directDamage}}</b></button>{{/if}}
                   {{#if item.consumable}}<button type="button" class="gum-hud-resource-inline-action" data-use-consumable="{{item.id}}" {{#unless item.canConsume}}disabled{{/unless}}><small>{{../../useLabel}}</small><b>{{item.consumptionDisplay}}</b></button>{{/if}}

@@ -109,8 +109,10 @@ function retainHudOwnership(actor, { notify = true } = {}) {
 }
 const favorites = actor => [...actor.items].filter(item => item.system?.favorite_in_combat === true);
 const loadoutFor = actor => game.settings.get(MODULE, "equipmentSlots")?.[actor.uuid] || [];
+const loadoutActivityFor = actor => game.settings.get(MODULE, "equipmentActivity")?.[actor.uuid] || {};
+const equipmentIsActive = (actor, itemId) => loadoutActivityFor(actor)[itemId] !== false;
 const regionIsExpanded = key => game.settings.get(MODULE, "expandedRegions")?.[key] === true;
-const equipmentFor = actor => loadoutFor(actor).map(id => actor.items.get(id)).filter(item => item?.type === "equipment");
+const equipmentFor = actor => loadoutFor(actor).map(id => actor.items.get(id)).filter(item => item?.type === "equipment" && equipmentIsActive(actor, item.id));
 const consumablesFor = actor => [...actor.items]
   .filter(item => item.type === "equipment" && item.system?.is_consumable === true)
   .sort((a, b) => a.name.localeCompare(b.name, game.i18n.lang));
@@ -132,25 +134,22 @@ function activeEffectsFor(actor) {
         gumDuration.pendingCombat === true || gumDuration.pendingStart === true || gumDuration.inCombat === true ||
         Number(duration.seconds) > 0 || Number(duration.rounds) > 0 || Number(duration.turns) > 0
       );
+      let durationLabel = "";
+      if (gumDuration.pendingCombat === true) durationLabel = localize("Effects.PendingCombat", "Próximo combate");
+      else if (gumDuration.pendingStart === true) durationLabel = localize("Effects.NextTurn", "Próximo turno");
+      else if (!explicitlyPermanent && Number(duration.seconds) > 0) durationLabel = format("Effects.Seconds", { count: Math.max(0, Math.ceil(Number(duration.remaining ?? duration.seconds))) }, `${Math.max(0, Math.ceil(Number(duration.remaining ?? duration.seconds)))} s`);
+      else if (!explicitlyPermanent && Number(duration.rounds) > 0) durationLabel = format("Effects.Rounds", { count: Math.max(0, Math.ceil(Number(duration.remaining ?? duration.rounds))) }, `${Math.max(0, Math.ceil(Number(duration.remaining ?? duration.rounds)))} rod.`);
+      else if (!explicitlyPermanent && Number(duration.turns) > 0) durationLabel = format("Effects.Turns", { count: Math.max(0, Math.ceil(Number(duration.remaining ?? duration.turns))) }, `${Math.max(0, Math.ceil(Number(duration.remaining ?? duration.turns)))} turnos`);
       return {
         effect,
         temporary,
         name: effect.name || localize("Effects.Unnamed", "Efeito sem nome"),
         img: effect.img || effect.icon || "icons/svg/aura.svg",
+        durationLabel,
         sourceUuid: String(effect.flags?.gum?.effectUuid || (/\.Item\./.test(effect.origin || "") ? effect.origin : "")).trim()
       };
     })
     .sort((a, b) => Number(b.temporary) - Number(a.temporary) || a.name.localeCompare(b.name, game.i18n.lang));
-}
-
-function effectsPanelMarkup(actor) {
-  const effects = activeEffectsFor(actor);
-  const group = (temporary, label) => {
-    const entries = effects.filter(entry => entry.temporary === temporary);
-    if (!entries.length) return "";
-    return `<section class="gum-hud-effect-group"><div class="gum-hud-effect-group-title"><span>${escape(label)}</span><b>${entries.length}</b></div><div class="gum-hud-effect-grid">${entries.map(({ effect, name, img, sourceUuid }) => `<div class="gum-hud-effect-entry" ${sourceUuid ? `data-preview-uuid="${escape(sourceUuid)}"` : ""} title="${escape(name)}"><img src="${escape(img)}" alt=""><span>${escape(name)}</span>${effect.statuses?.size ? `<small>${escape([...effect.statuses].join(", "))}</small>` : ""}</div>`).join("")}</div></section>`;
-  };
-  return `${group(true, localize("Effects.Temporary", "Temporários"))}${group(false, localize("Effects.Permanent", "Permanentes"))}`;
 }
 
 function activeManeuverUuids(actor) {
@@ -310,7 +309,11 @@ function characterBrowserActions() {
     damageLabel: damageText,
     attackDamageLabel: (actor, attack) => attackDamage(actor, attack).main,
     consumableState,
+    effectsFor: activeEffectsFor,
     preview: async (actor, item) => api().ui.previewItem(item.id, { actor, sendToChat: true }),
+    previewEffect: async (actor, effect) => {
+      if (effect.sourceUuid) await api().ui.previewItem(effect.sourceUuid, { actor, sendToChat: true });
+    },
     rollAbility: async (actor, item) => {
       closeSelectionForRoll();
       await promptRoll(actor, withExecutionOptions(actor, { type: item.type, value: item.type === "skill" ? item.system.tree_final_nh ?? item.system.final_nh : item.system.final_nh, itemId: item.id, attributeKey: item.type === "skill" ? item.system.tree_base_attribute || item.system.base_attribute : undefined, label: item.name }));
@@ -436,7 +439,6 @@ function categoryMarkup(actor, type) {
 
 function expandedMarkup(actor) {
   if (!openSelection) return "";
-  if (openSelection.kind === "effects") return effectsPanelMarkup(actor);
   if (openSelection.kind === "defense") {
     const defenseLabel = openSelection.key === "final_parry" ? localize("Defense.Parry", "Aparar") : localize("Defense.Block", "Bloqueio");
     return groupedDefenses(actor, openSelection.key).map(({ item, options }) => `<section class="gum-hud-domino gum-hud-defense-domino" data-preview-item="${escape(item.id)}" aria-label="${escape(item.name)}"><div class="gum-hud-defense-domino-heading" title="${escape(item.name)}"><img src="${escape(item.img)}" alt=""><strong>${escape(item.name)}</strong><small>${escape(defenseLabel)}</small></div><div class="gum-hud-domino-options">${options.map(row => `<button class="gum-hud-domino-defense" data-defense-item="${escape(item.id)}" data-defense-attack="${escape(row.id)}" data-defense-kind="${openSelection.key}" title="${escape(item.name)} · ${escape(row.skill)} · ${escape(row.modes.join(", "))}: ${escape(row.value)}"><strong>${escape(row.value)}</strong><span>${escape(row.skill)}</span></button>`).join("")}</div></section>`).join("");
@@ -602,13 +604,13 @@ function render() {
   }).join("");
   const itemCards = combatItems.map(item => `<button data-item="${escape(item.id)}" class="gum-hud-card ${openSelection?.kind === "item" && openSelection.key === item.id ? "is-selected" : ""}" aria-expanded="${openSelection?.kind === "item" && openSelection.key === item.id}" title="${escape(item.name)}"><img src="${escape(item.img)}" alt=""><span>${escape(item.name)}</span></button>`).join("") + categoryCards;
   const assigned = loadoutFor(actor);
-  const equipmentSlots = Array.from({ length: 5 }, (_, index) => {
+  const equipmentSlots = Array.from({ length: 6 }, (_, index) => {
     const item = actor.items.get(assigned[index]);
-    return `<div class="gum-hud-slot" data-slot="${index}" ${item ? `data-preview-item="${escape(item.id)}"` : ""} title="${item ? escape(item.name) : escape(localize("Slots.DropEquipment", "Arraste um equipamento da ficha"))}">${item ? `<img src="${escape(item.img)}" alt=""><button type="button" data-clear-slot="${index}" title="${escape(localize("Slots.RemoveShortcut", "Remover atalho"))}">×</button>` : `<span>+</span>`}</div>`;
+    const active = item ? equipmentIsActive(actor, item.id) : false;
+    const stateLabel = active ? localize("Slots.Deactivate", "Ocultar das opções de combate") : localize("Slots.Activate", "Exibir nas opções de combate");
+    return `<div class="gum-hud-slot ${item ? (active ? "is-active" : "is-inactive") : ""}" data-slot="${index}" ${item ? `data-preview-item="${escape(item.id)}"` : ""} title="${item ? `${escape(item.name)} · ${escape(stateLabel)}` : escape(localize("Slots.DropEquipment", "Arraste um equipamento da ficha"))}">${item ? `<img src="${escape(item.img)}" alt=""><button type="button" class="gum-hud-slot-activity" data-toggle-equipment="${escape(item.id)}" aria-pressed="${active}" title="${escape(stateLabel)}"><i aria-hidden="true"></i></button><button type="button" data-clear-slot="${index}" title="${escape(localize("Slots.RemoveShortcut", "Remover atalho"))}">×</button>` : `<span>+</span>`}</div>`;
   }).join("");
   const activeEffects = activeEffectsFor(actor);
-  const effectsSelected = openSelection?.kind === "effects";
-  const effectsControl = `<span class="gum-hud-loadout-separator" aria-hidden="true"></span><button type="button" class="gum-hud-effects-control ${effectsSelected ? "is-selected" : ""}" data-active-effects aria-expanded="${effectsSelected}" ${activeEffects.length ? "" : "disabled"} title="${escape(format("Effects.Count", { count: activeEffects.length }, `Efeitos ativos: ${activeEffects.length}`))}"><i class="fas fa-sparkles" aria-hidden="true"></i>${activeEffects.length ? `<b>${activeEffects.length}</b>` : ""}</button>`;
   const allManeuvers = group?.effectUuids || [];
   const activeIndex = allManeuvers.findIndex(uuid => active.has(uuid));
   const visibleIndices = allManeuvers.length <= 16 ? allManeuvers.map((_, index) => index) : allManeuvers.slice(0, VISIBLE_MANEUVERS).map((_, index) => index);
@@ -634,23 +636,21 @@ function render() {
   const consumablesLabel = localize("Consumables.Title", "Consumíveis");
   const consumableRegion = consumables.length ? `<div class="gum-hud-region gum-hud-consumable-region">${regionChrome(consumablesLabel.toLocaleUpperCase(game.i18n.lang), "consumables", false)}<div class="gum-hud-consumables"><button class="gum-hud-card gum-hud-consumable-card ${openSelection?.kind === "consumables" ? "is-selected" : ""}" data-consumables aria-expanded="${openSelection?.kind === "consumables"}" title="${escape(format("Consumables.Count", { count: consumables.length }, `${consumablesLabel}: ${consumables.length}`))}"><img src="icons/containers/bags/pack-leather-white-tan.webp" alt=""></button></div><div class="gum-hud-expanded"></div></div>` : "";
   const resourceRail = [
-    ["skill", "fa-list", localize("CharacterBrowser.Skills", "Perícias")],
-    ["spell", "fa-book-open", localize("CharacterBrowser.Spells", "Magias")],
-    ["power", "fa-bolt", localize("CharacterBrowser.Powers", "Poderes")],
-    ["equipment", "fa-toolbox", localize("CharacterBrowser.Equipment", "Equipamentos")]
-  ].map(([category, icon, label]) => `<button type="button" data-character-browser="${category}" class="${characterBrowser?.actorUuid === actor.uuid && characterBrowser.category === category ? "is-active" : ""}" title="${escape(label)}"><i class="fas ${icon}" aria-hidden="true"></i></button>`).join("");
+    ["skill", "fa-list", localize("CharacterBrowser.Skills", "Perícias"), 0],
+    ["spell", "fa-book-open", localize("CharacterBrowser.Spells", "Magias"), 0],
+    ["power", "fa-bolt", localize("CharacterBrowser.Powers", "Poderes"), 0],
+    ["equipment", "fa-toolbox", localize("CharacterBrowser.Equipment", "Equipamentos"), 0],
+    ["effect", "fa-sparkles", localize("CharacterBrowser.Effects", "Efeitos"), activeEffects.length]
+  ].map(([category, icon, label, count]) => `<button type="button" data-character-browser="${category}" class="${characterBrowser?.actorUuid === actor.uuid && characterBrowser.category === category ? "is-active" : ""}" title="${escape(count ? `${label}: ${count}` : label)}"><i class="fas ${icon}" aria-hidden="true"></i>${count ? `<b>${count}</b>` : ""}</button>`).join("");
   const identityVitals = `${identityResource(hp, "HP")}${identityResource(fp, "FP")}${identityMovement(actor)}`;
-  root.innerHTML = `<div class="gum-hud-region gum-hud-identity-region gum-hud-summary"><div class="gum-hud-loadout" aria-label="${escape(localize("Identity.QuickEquipment", "Equipamentos rápidos"))}">${equipmentSlots}${effectsControl}</div><div class="gum-hud-effect-panel"></div><img src="${escape(tokenForHud.document.texture?.src || actor.img)}" alt=""><div class="gum-hud-summary-info"><strong>${escape(actor.name)}</strong><div class="gum-hud-vitals">${identityVitals}</div></div><button data-close title="${escape(localize("General.Close", "Fechar"))}">×</button></div><nav class="gum-hud-resource-rail" aria-label="${escape(localize("CharacterBrowser.Access", "Acesso rápido"))}">${resourceRail}</nav><div class="gum-hud-region gum-hud-maneuver-region ${regionIsExpanded("maneuvers") ? "is-expanded" : ""}">${maneuverChrome(localize("Maneuvers.Title", "MANOBRAS"), maneuverExpandable, combatOptions, actor)}<div class="gum-hud-maneuvers">${maneuvers || `<small>${localize("Maneuvers.SelectGroup", "Selecione um grupo nas configurações.")}</small>`}</div><div class="gum-hud-maneuver-palette" hidden>${extraManeuvers}</div>${combatOptionsPanelMarkup(actor, combatOptions)}</div><div class="gum-hud-region gum-hud-combat ${regionIsExpanded("combat") ? "is-expanded" : ""}">${regionChrome(localize("Combat.Title", "OPÇÕES DE COMBATE"), "combat", combatExpandable)}<div class="gum-hud-cards">${itemCards || `<small>${localize("Combat.Empty", "Arraste equipamentos para os slots ou marque outras opções como favoritas.")}</small>`}</div><div class="gum-hud-expanded"></div></div><div class="gum-hud-region gum-hud-defense-region">${regionChrome(localize("Defense.Title", "DEFESAS ATIVAS"), "defenses", false)}<div class="gum-hud-defenses"></div><div class="gum-hud-expanded"></div></div>${consumableRegion}`;
+  root.innerHTML = `<div class="gum-hud-region gum-hud-identity-region gum-hud-summary"><div class="gum-hud-loadout" aria-label="${escape(localize("Identity.QuickEquipment", "Equipamentos rápidos"))}">${equipmentSlots}</div><img src="${escape(tokenForHud.document.texture?.src || actor.img)}" alt=""><div class="gum-hud-summary-info"><strong>${escape(actor.name)}</strong><div class="gum-hud-vitals">${identityVitals}</div></div><button data-close title="${escape(localize("General.Close", "Fechar"))}">×</button></div><nav class="gum-hud-resource-rail" aria-label="${escape(localize("CharacterBrowser.Access", "Acesso rápido"))}">${resourceRail}</nav><div class="gum-hud-region gum-hud-maneuver-region ${regionIsExpanded("maneuvers") ? "is-expanded" : ""}">${maneuverChrome(localize("Maneuvers.Title", "MANOBRAS"), maneuverExpandable, combatOptions, actor)}<div class="gum-hud-maneuvers">${maneuvers || `<small>${localize("Maneuvers.SelectGroup", "Selecione um grupo nas configurações.")}</small>`}</div><div class="gum-hud-maneuver-palette" hidden>${extraManeuvers}</div>${combatOptionsPanelMarkup(actor, combatOptions)}</div><div class="gum-hud-region gum-hud-combat ${regionIsExpanded("combat") ? "is-expanded" : ""}">${regionChrome(localize("Combat.Title", "OPÇÕES DE COMBATE"), "combat", combatExpandable)}<div class="gum-hud-cards">${itemCards || `<small>${localize("Combat.Empty", "Arraste equipamentos para os slots ou marque outras opções como favoritas.")}</small>`}</div><div class="gum-hud-expanded"></div></div><div class="gum-hud-region gum-hud-defense-region">${regionChrome(localize("Defense.Title", "DEFESAS ATIVAS"), "defenses", false)}<div class="gum-hud-defenses"></div><div class="gum-hud-expanded"></div></div>${consumableRegion}`;
   if (openSelection?.kind === "defense" && !defenseEntries(actor, openSelection.key).length) openSelection = null;
   if (openSelection?.kind === "specialDefense" && !specialDefenses.length) openSelection = null;
   if (openSelection?.kind === "consumables" && !consumables.length) openSelection = null;
-  if (openSelection?.kind === "effects" && !activeEffects.length) openSelection = null;
   const specialDefenseCard = specialDefenses.length ? `<button class="gum-hud-defense ${openSelection?.kind === "specialDefense" ? "is-selected" : ""}" data-special-defenses aria-expanded="${openSelection?.kind === "specialDefense"}" title="${escape(localize("Defense.SpecialPlural", "Defesas especiais"))}"><img src="modules/gum-hud/icons/special-defense.svg" alt=""><span>${localize("Defense.Special", "Especial")}</span></button>` : "";
   root.querySelector(".gum-hud-defenses").innerHTML = `<button class="gum-hud-defense" data-defense="dodge" title="${escape(localize("Defense.RollDodge", "Rolar Esquiva"))}"><img src="modules/gum-hud/icons/dodge.svg" alt=""><span>${localize("Defense.Dodge", "Esquiva")}</span><b>${escape(actor.system?.attributes?.dodge?.final ?? "—")}</b></button><button class="gum-hud-defense ${openSelection?.kind === "defense" && openSelection.key === "final_parry" ? "is-selected" : ""}" data-expand-defense="final_parry" aria-expanded="${openSelection?.kind === "defense" && openSelection.key === "final_parry"}" ${defenseEntries(actor, "final_parry").length ? "" : "disabled"} title="${escape(localize("Defense.ParryOptions", "Opções de Aparar"))}"><img src="modules/gum-hud/icons/parry.svg" alt=""><span>${localize("Defense.Parry", "Aparar")}</span></button><button class="gum-hud-defense ${openSelection?.kind === "defense" && openSelection.key === "final_block" ? "is-selected" : ""}" data-expand-defense="final_block" aria-expanded="${openSelection?.kind === "defense" && openSelection.key === "final_block"}" ${defenseEntries(actor, "final_block").length ? "" : "disabled"} title="${escape(localize("Defense.BlockOptions", "Opções de Bloqueio"))}"><img src="modules/gum-hud/icons/block.svg" alt=""><span>${localize("Defense.Block", "Bloqueio")}</span></button>${specialDefenseCard}`;
   if (openSelection) {
-    const target = openSelection.kind === "effects"
-      ? ".gum-hud-effect-panel"
-      : openSelection.kind === "defense" || openSelection.kind === "specialDefense"
+    const target = openSelection.kind === "defense" || openSelection.kind === "specialDefense"
       ? ".gum-hud-defense-region .gum-hud-expanded"
       : openSelection.kind === "consumables"
         ? ".gum-hud-consumable-region .gum-hud-expanded"
@@ -685,11 +685,17 @@ function render() {
       const item = data.uuid ? await fromUuid(data.uuid).catch(() => null) : actor.items.get(data.id);
       if (item?.type !== "equipment" || item.parent?.uuid !== actor.uuid) throw new Error(localize("Slots.WrongActor", "Arraste um equipamento deste personagem."));
       const slots = [...loadoutFor(actor)];
+      const targetIndex = Number(slot.dataset.slot);
       const existing = slots.indexOf(item.id);
+      const replacedId = slots[targetIndex];
       if (existing >= 0) slots[existing] = null;
-      slots[Number(slot.dataset.slot)] = item.id;
+      slots[targetIndex] = item.id;
       const all = { ...game.settings.get(MODULE, "equipmentSlots"), [actor.uuid]: slots };
       await game.settings.set(MODULE, "equipmentSlots", all);
+      const actorActivity = { ...loadoutActivityFor(actor) };
+      if (replacedId && replacedId !== item.id) delete actorActivity[replacedId];
+      if (existing < 0) actorActivity[item.id] = true;
+      await game.settings.set(MODULE, "equipmentActivity", { ...game.settings.get(MODULE, "equipmentActivity"), [actor.uuid]: actorActivity });
       render();
     } catch (error) { ui.notifications.warn(error.message || localize("Slots.CannotAdd", "Não foi possível adicionar o equipamento.")); }
   });
@@ -699,7 +705,6 @@ function render() {
     if (!button) return;
     try {
       if (button.hasAttribute("data-close")) { pinnedToken = null; closeCharacterBrowser(); render(); return; }
-      if (button.hasAttribute("data-active-effects")) { toggleSelection("effects", "active"); return; }
       if (button.dataset.characterBrowser) { await requestCharacterBrowser(actor, button.dataset.characterBrowser); return; }
       if (button.dataset.toggleRegion) {
         const key = button.dataset.toggleRegion;
@@ -710,8 +715,20 @@ function render() {
       }
       if (button.dataset.clearSlot != null) {
         const slots = [...loadoutFor(actor)];
+        const itemId = slots[Number(button.dataset.clearSlot)];
         slots[Number(button.dataset.clearSlot)] = null;
         await game.settings.set(MODULE, "equipmentSlots", { ...game.settings.get(MODULE, "equipmentSlots"), [actor.uuid]: slots });
+        if (itemId) {
+          const actorActivity = { ...loadoutActivityFor(actor) };
+          delete actorActivity[itemId];
+          await game.settings.set(MODULE, "equipmentActivity", { ...game.settings.get(MODULE, "equipmentActivity"), [actor.uuid]: actorActivity });
+        }
+        render(); return;
+      }
+      if (button.dataset.toggleEquipment) {
+        const itemId = button.dataset.toggleEquipment;
+        const actorActivity = { ...loadoutActivityFor(actor), [itemId]: !equipmentIsActive(actor, itemId) };
+        await game.settings.set(MODULE, "equipmentActivity", { ...game.settings.get(MODULE, "equipmentActivity"), [actor.uuid]: actorActivity });
         render(); return;
       }
       if (button.hasAttribute("data-more-maneuvers")) {
@@ -822,6 +839,7 @@ Hooks.once("init", () => {
   game.settings.register(MODULE, "maneuverGroup", { name: "GUMHUD.Settings.ManeuverGroup.Name", hint: "GUMHUD.Settings.ManeuverGroup.Hint", scope: "world", config: true, type: String, default: "", onChange: async () => { await migrateLegacyCombatOptions(); if (pinnedToken) refreshManeuverNames(); } });
   game.settings.register(MODULE, "hideHotbar", { name: "GUMHUD.Settings.HideHotbar.Name", hint: "GUMHUD.Settings.HideHotbar.Hint", scope: "client", config: true, type: Boolean, default: true, onChange: render });
   game.settings.register(MODULE, "equipmentSlots", { name: "GUMHUD.Settings.EquipmentSlots.Name", scope: "client", config: false, type: Object, default: {} });
+  game.settings.register(MODULE, "equipmentActivity", { name: "GUMHUD.Settings.EquipmentActivity.Name", scope: "client", config: false, type: Object, default: {} });
   game.settings.register(MODULE, "expandedRegions", { name: "GUMHUD.Settings.ExpandedRegions.Name", scope: "client", config: false, type: Object, default: { maneuvers: false, combat: false } });
   game.settings.register(MODULE, "characterBrowserState", { name: "GUMHUD.Settings.CharacterBrowserState.Name", scope: "client", config: false, type: Object, default: { category: "skill", equipmentFilter: "all" } });
   game.settings.register(MODULE, EXECUTION_REGISTRY_SETTING, { scope: "world", config: false, type: Object, default: { version: 2, bindings: [] }, onChange: async () => { await hydrateExecutionSources(); if (pinnedToken) render(); } });

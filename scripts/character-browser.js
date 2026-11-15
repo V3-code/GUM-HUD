@@ -1,5 +1,5 @@
 const MODULE_ID = "gum-hud";
-const VALID_CATEGORIES = new Set(["skill", "spell", "power", "equipment"]);
+const VALID_CATEGORIES = new Set(["skill", "spell", "power", "equipment", "effect"]);
 const UNGROUPED = "__ungrouped__";
 
 const localize = (key, fallback) => {
@@ -11,13 +11,15 @@ const categoryLabel = category => ({
   skill: localize("Skills", "Perícias"),
   spell: localize("Spells", "Magias"),
   power: localize("Powers", "Poderes"),
-  equipment: localize("Equipment", "Equipamentos")
+  equipment: localize("Equipment", "Equipamentos"),
+  effect: localize("Effects", "Efeitos")
 })[category];
 const categoryIcon = category => ({
   skill: "fas fa-list",
   spell: "fas fa-book-open",
   power: "fas fa-bolt",
-  equipment: "fas fa-toolbox"
+  equipment: "fas fa-toolbox",
+  effect: "fas fa-sparkles"
 })[category];
 const clean = value => String(value ?? "").trim();
 
@@ -85,6 +87,7 @@ export class CharacterResourceBrowser extends FormApplication {
     this.collapsedGroups = new Set(Array.isArray(state.collapsedGroups) ? state.collapsedGroups : []);
     this.query = "";
     this.expandedItemId = null;
+    this.effectEntries = new Map();
     this.actions = actions;
     this._firstRenderPromise = new Promise(resolve => { this._resolveFirstRender = resolve; });
   }
@@ -119,6 +122,22 @@ export class CharacterResourceBrowser extends FormApplication {
       else if (this.equipmentFilter === "equipped") items = items.filter(item => clean(item.system?.location).toLowerCase() === "equipped");
     }
     return items;
+  }
+
+  _effects() {
+    if (!this._actorAvailable()) return [];
+    return this.actions.effectsFor?.(this.actor) || [];
+  }
+
+  _viewEffect(entry) {
+    return {
+      id: entry.effect.id,
+      name: entry.name,
+      img: entry.img,
+      search: `${entry.name} ${entry.durationLabel || ""}`.toLocaleLowerCase(),
+      isEffect: true,
+      subtitle: entry.durationLabel || ""
+    };
   }
 
   _viewItem(item) {
@@ -161,15 +180,32 @@ export class CharacterResourceBrowser extends FormApplication {
   }
 
   async getData() {
-    const tabs = [...VALID_CATEGORIES].map(id => ({ id, label: categoryLabel(id), icon: categoryIcon(id), active: id === this.category }));
-    const items = this._items();
-    const groups = orderedGroups(this.actor, this.category, items).map(group => ({
-      ...group,
-      count: group.items.length,
-      collapseKey: `${this.category}:${group.id}`,
-      collapsed: this.collapsedGroups.has(`${this.category}:${group.id}`),
-      items: group.items.map(item => this._viewItem(item))
-    }));
+    const effects = this._effects();
+    const tabs = [...VALID_CATEGORIES].map(id => ({ id, label: categoryLabel(id), icon: categoryIcon(id), active: id === this.category, count: id === "effect" && effects.length ? effects.length : null }));
+    let groups;
+    if (this.category === "effect") {
+      this.effectEntries = new Map(effects.map(entry => [entry.effect.id, entry]));
+      groups = [
+        { id: "temporary", name: localize("TemporaryEffects", "Temporários"), items: effects.filter(entry => entry.temporary) },
+        { id: "permanent", name: localize("PermanentEffects", "Permanentes"), items: effects.filter(entry => !entry.temporary) }
+      ].filter(group => group.items.length).map(group => ({
+        ...group,
+        count: group.items.length,
+        collapseKey: `effect:${group.id}`,
+        collapsed: this.collapsedGroups.has(`effect:${group.id}`),
+        items: group.items.map(entry => this._viewEffect(entry))
+      }));
+    } else {
+      this.effectEntries.clear();
+      const items = this._items();
+      groups = orderedGroups(this.actor, this.category, items).map(group => ({
+        ...group,
+        count: group.items.length,
+        collapseKey: `${this.category}:${group.id}`,
+        collapsed: this.collapsedGroups.has(`${this.category}:${group.id}`),
+        items: group.items.map(item => this._viewItem(item))
+      }));
+    }
     return {
       actorName: this.actor?.name || "",
       category: this.category,
@@ -221,6 +257,11 @@ export class CharacterResourceBrowser extends FormApplication {
     });
     html.on("contextmenu", "[data-browser-item]", async event => {
       event.preventDefault(); event.stopPropagation();
+      if (this.category === "effect") {
+        const effect = this.effectEntries.get(event.currentTarget.dataset.browserItem);
+        if (effect) await this.actions.previewEffect?.(this.actor, effect);
+        return;
+      }
       const item = this.actor?.items?.get(event.currentTarget.dataset.browserItem);
       if (item) await this.actions.preview?.(this.actor, item);
     });

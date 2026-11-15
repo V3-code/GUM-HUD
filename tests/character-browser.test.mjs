@@ -11,8 +11,8 @@ const [browser, hud, template, css, portuguese, english] = await Promise.all([
   readFile(new URL("../lang/en.json", import.meta.url), "utf8").then(JSON.parse)
 ]);
 
-test("character quick access uses one reusable browser with four direct category launchers", () => {
-  for (const category of ["skill", "spell", "power", "equipment"]) {
+test("character quick access uses one reusable browser with five direct category launchers", () => {
+  for (const category of ["skill", "spell", "power", "equipment", "effect"]) {
     assert.match(hud, new RegExp(`\\["${category}"`));
     assert.match(browser, new RegExp(`"${category}"`));
   }
@@ -80,12 +80,16 @@ test("identity summary exposes current and maximum resources plus effective move
   assert.deepEqual(Object.keys(portuguese.GUMHUD.Identity).sort(), Object.keys(english.GUMHUD.Identity).sort());
 });
 
-test("active effects have a dedicated control outside the equipment slots", () => {
+test("active effects use the character browser and the loadout keeps six independent slots", () => {
   assert.match(hud, /function activeEffectsFor/);
-  assert.match(hud, /data-active-effects/);
-  assert.match(hud, /gum-hud-loadout-separator/);
-  assert.match(hud, /openSelection\.kind === "effects"/);
-  assert.match(css, /\.gum-hud-effect-panel/);
-  assert.match(css, /\.gum-hud-effect-entry/);
+  assert.match(browser, /"effect"/);
+  assert.match(browser, /TemporaryEffects/);
+  assert.match(template, /item\.isEffect/);
+  assert.doesNotMatch(hud, /data-active-effects/);
+  assert.doesNotMatch(css, /\.gum-hud-effect-panel/);
+  assert.match(hud, /Array\.from\(\{ length: 6 \}/);
+  assert.match(hud, /equipmentActivity/);
+  assert.match(hud, /data-toggle-equipment/);
+  assert.match(css, /\.gum-hud-slot\.is-inactive/);
   assert.deepEqual(Object.keys(portuguese.GUMHUD.Effects).sort(), Object.keys(english.GUMHUD.Effects).sort());
 });
