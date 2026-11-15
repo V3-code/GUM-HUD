@@ -79,3 +79,13 @@ test("identity summary exposes current and maximum resources plus effective move
   assert.match(css, /\.gum-hud-movement/);
   assert.deepEqual(Object.keys(portuguese.GUMHUD.Identity).sort(), Object.keys(english.GUMHUD.Identity).sort());
 });
+
+test("active effects have a dedicated control outside the equipment slots", () => {
+  assert.match(hud, /function activeEffectsFor/);
+  assert.match(hud, /data-active-effects/);
+  assert.match(hud, /gum-hud-loadout-separator/);
+  assert.match(hud, /openSelection\.kind === "effects"/);
+  assert.match(css, /\.gum-hud-effect-panel/);
+  assert.match(css, /\.gum-hud-effect-entry/);
+  assert.deepEqual(Object.keys(portuguese.GUMHUD.Effects).sort(), Object.keys(english.GUMHUD.Effects).sort());
+});
