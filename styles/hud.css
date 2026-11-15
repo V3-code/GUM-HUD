@@ -133,25 +133,223 @@ body.gum-hud-hide-hotbar #hotbar { display: none !important; }
 .gum-hud-feature span { position: relative; z-index: 1; overflow: hidden; width: 100%; padding: 2px; background: #111c; color: #fff; font-size: 9px; line-height: 12px; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
 .gum-hud-feature b { position: absolute; z-index: 2; top: 2px; right: 2px; padding: 1px 3px; border-radius: 3px; background: #111d; color: #fff; font-size: 10px; }
 
+/* Shared premium visual language: the item art carries the colour; chrome stays quiet. */
+#gum-hud-bar {
+  --hud-bg: #17191f;
+  --hud-bg-deep: #121419;
+  --hud-surface: #202329;
+  --hud-surface-hover: #272a30;
+  --hud-line: rgba(255, 255, 255, .075);
+  --hud-line-strong: #44392d;
+  --hud-accent: #a47947;
+  --hud-accent-bright: #e9c78e;
+  --hud-text: #eee4d2;
+  --hud-muted: #9f978c;
+  --region-rgb: 164, 121, 71;
+  --region-title-rgb: 233, 199, 142;
+  color: var(--hud-text);
+  filter: drop-shadow(0 8px 16px #0009);
+}
+#gum-hud-bar button {
+  border-color: var(--hud-line);
+  border-radius: 3px;
+  background: var(--hud-surface);
+  color: var(--hud-text);
+  transition: background-color 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+}
+#gum-hud-bar button:hover,
+#gum-hud-bar button.active,
+#gum-hud-bar .gum-hud-region button:hover,
+#gum-hud-bar .gum-hud-region button.active {
+  border-color: rgba(164, 121, 71, .62);
+  background: var(--hud-surface-hover);
+}
+#gum-hud-bar button.is-selected,
+#gum-hud-bar .gum-hud-region button.is-selected {
+  border-color: rgba(164, 121, 71, .72);
+  background: #2b2926;
+  box-shadow: inset 2px 0 0 var(--hud-accent), inset 0 0 0 1px rgba(233, 199, 142, .035);
+}
+.gum-hud-region {
+  --region-rgb: 164, 121, 71;
+  --region-title-rgb: 233, 199, 142;
+  gap: 4px;
+  border-color: var(--hud-line-strong);
+  border-radius: 3px;
+  background: rgba(23, 25, 31, .965);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .025);
+}
+.gum-hud-region header {
+  min-height: 20px;
+  border-top-color: var(--hud-line);
+  background: #15171c;
+  color: #cfc1ad;
+  font-size: 9px;
+  letter-spacing: .075em;
+}
+.gum-hud-region header > span { padding-block: 3px 2px; }
+.gum-hud-identity-region { border-color: var(--hud-line-strong); background: var(--hud-bg-deep); }
+.gum-hud-summary > img { border-radius: 2px; }
+.gum-hud-summary-info { padding-bottom: 8px; background: linear-gradient(transparent 18%, rgba(12, 13, 17, .96) 82%); }
+.gum-hud-summary strong { color: #f2e7d4; font-size: 13px; }
+.gum-hud-summary small { color: var(--hud-muted); font-size: 10px; }
+.gum-hud-loadout {
+  gap: 3px;
+  border-color: var(--hud-line-strong);
+  border-radius: 3px;
+  background: rgba(18, 20, 25, .97);
+}
+.gum-hud-slot { border-color: #695b49; border-radius: 2px; color: #b9a485; }
+.gum-hud-resource-rail { border-color: var(--hud-line-strong); border-radius: 3px; background: rgba(18, 20, 25, .97); }
+#gum-hud-bar .gum-hud-resource-rail button { border-color: transparent; border-radius: 2px; background: transparent; color: #a99f91; }
+#gum-hud-bar .gum-hud-resource-rail button:hover,
+#gum-hud-bar .gum-hud-resource-rail button.is-active { border-color: rgba(164, 121, 71, .55); background: #292721; color: var(--hud-accent-bright); box-shadow: inset 2px 0 0 var(--hud-accent); }
+#gum-hud-bar .gum-hud-region-toggle,
+#gum-hud-bar .gum-hud-combat-options-toggle,
+#gum-hud-bar .gum-hud-execution-config-button { color: #bdb2a2; }
+#gum-hud-bar .gum-hud-region-toggle:hover,
+#gum-hud-bar .gum-hud-region-toggle:focus-visible,
+#gum-hud-bar .gum-hud-combat-options-toggle:hover,
+#gum-hud-bar .gum-hud-combat-options-toggle:focus-visible,
+#gum-hud-bar .gum-hud-combat-options-toggle.is-selected,
+#gum-hud-bar .gum-hud-execution-config-button:hover,
+#gum-hud-bar .gum-hud-execution-config-button:focus-visible { background: rgba(164, 121, 71, .09); color: var(--hud-accent-bright); }
+.gum-hud-maneuvers, .gum-hud-cards, .gum-hud-defenses { gap: 4px; }
+#gum-hud-bar .gum-hud-maneuver { border-color: var(--hud-line); border-radius: 2px; background: #202329; }
+#gum-hud-bar .gum-hud-maneuver.active { border-color: var(--hud-accent); box-shadow: inset 0 -2px 0 var(--hud-accent-bright); }
+#gum-hud-bar .gum-hud-card,
+#gum-hud-bar .gum-hud-defenses .gum-hud-defense { border-color: var(--hud-line); border-radius: 3px; background: var(--hud-surface); }
+.gum-hud-card img { border-radius: 2px; }
+.gum-hud-card span, .gum-hud-defense span { color: #ddd2c1; font-size: 9px; font-weight: 650; }
+.gum-hud-defense b { color: var(--hud-accent-bright); }
+.gum-hud-category b { background: rgba(18, 20, 25, .94); color: var(--hud-accent-bright); }
+
+/* Execution options use the same compact grammar as the character summary. */
+.gum-hud-combat-options-panel {
+  bottom: calc(100% + 4px);
+  padding: 6px;
+  border-color: var(--hud-line-strong);
+  border-radius: 3px;
+  background: rgba(23, 25, 31, .985);
+  box-shadow: 0 8px 18px #0008, inset 0 1px 0 rgba(255, 255, 255, .025);
+}
+.gum-hud-combat-options-heading {
+  height: 18px;
+  gap: 5px;
+  padding: 0 2px 5px;
+  border-bottom: 1px solid var(--hud-line);
+  color: #d8c6aa;
+  font-size: 8px;
+  letter-spacing: .075em;
+}
+.gum-hud-combat-options-heading i { color: var(--hud-accent); font-size: 8px; }
+.gum-hud-combat-option-groups { gap: 6px; padding-top: 5px; }
+.gum-hud-combat-option-group { gap: 3px; }
+.gum-hud-combat-option-group-label { gap: 5px; color: #b8aa96; font-size: 7px; line-height: 9px; }
+.gum-hud-combat-option-group-label::after { border-top-color: var(--hud-line); }
+.gum-hud-combat-option-group.is-cumulative .gum-hud-combat-option-group-label::after { border-top-color: rgba(164, 121, 71, .36); }
+.gum-hud-combat-option-group-label small { color: #77736d; font-size: 6px; }
+.gum-hud-combat-options-grid { grid-auto-rows: 39px; gap: 3px; }
+#gum-hud-bar .gum-hud-combat-option-mini {
+  position: relative;
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  grid-template-rows: 1fr;
+  align-items: center;
+  height: 39px;
+  gap: 5px;
+  padding: 3px 5px;
+  border-color: transparent;
+  border-radius: 2px;
+  background: var(--hud-surface);
+  text-align: left;
+}
+#gum-hud-bar .gum-hud-combat-option-mini:hover { border-color: rgba(164, 121, 71, .46); background: var(--hud-surface-hover); }
+#gum-hud-bar .gum-hud-combat-option-mini.is-selected { border-color: rgba(164, 121, 71, .58); background: #2b2926; box-shadow: inset 2px 0 0 var(--hud-accent); }
+.gum-hud-combat-option-mini > span { position: relative; display: block; width: 24px; height: 24px; }
+.gum-hud-combat-option-mini img { width: 24px; height: 24px; border-radius: 2px; filter: saturate(.88); }
+.gum-hud-combat-option-mini small {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  display: block;
+  min-width: 14px;
+  max-width: 27px;
+  height: 13px;
+  padding: 0 3px;
+  overflow: hidden;
+  border: 1px solid rgba(164, 121, 71, .52);
+  border-radius: 7px;
+  background: #121419;
+  color: var(--hud-accent-bright);
+  font-size: 8px;
+  font-weight: 800;
+  line-height: 11px;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.gum-hud-combat-option-mini > strong {
+  max-height: 22px;
+  color: #e3d9c9;
+  font-size: 8px;
+  font-weight: 650;
+  line-height: 10px;
+}
+#gum-hud-bar .gum-hud-combat-options-more { margin-top: 5px; border-top-color: var(--hud-line); color: #a99e8e; font-size: 8px; }
+
+.gum-hud-expanded, .gum-hud-maneuver-palette {
+  bottom: calc(100% + 4px);
+  gap: 3px;
+  padding: 5px;
+  border-color: var(--hud-line-strong);
+  border-radius: 3px;
+  background: rgba(23, 25, 31, .985);
+  box-shadow: 0 8px 18px #0008;
+}
+.gum-hud-domino { min-height: 48px; border-color: var(--hud-line); border-radius: 3px; background: var(--hud-surface); }
+.gum-hud-domino-source { flex-basis: 48px; width: 48px; height: 48px; }
+.gum-hud-domino-source span { background: rgba(12, 13, 17, .88); }
+#gum-hud-bar .gum-hud-domino-defense { min-height: 48px; border-left-color: var(--hud-line); }
+#gum-hud-bar .gum-hud-attack-domino,
+#gum-hud-bar .gum-hud-ability-domino,
+#gum-hud-bar .gum-hud-consumable-domino { min-height: 52px; border-color: var(--hud-line); background: var(--hud-surface); }
+.gum-hud-mode-icon { flex-basis: 48px; width: 48px; min-height: 52px; border-right-color: var(--hud-line); color: var(--hud-accent-bright); }
+.gum-hud-mode-icon img { max-height: 52px; }
+.gum-hud-mode-name { padding: 3px 6px; }
+.gum-hud-mode-name strong { color: #e7ddcd; font-size: 11px; }
+.gum-hud-mode-name small, .gum-hud-mode-damage em { color: var(--hud-muted); }
+.gum-hud-mode-stat, .gum-hud-mode-damage, #gum-hud-bar .gum-hud-mode-action { border-left-color: var(--hud-line); }
+.gum-hud-mode-stat small, .gum-hud-mode-damage small, .gum-hud-consumable-balance small, .gum-hud-consumable-use small { color: #b79a72; }
+#gum-hud-bar .gum-hud-mode-action { background: #24272d; }
+#gum-hud-bar .gum-hud-mode-action:hover, #gum-hud-bar .gum-hud-mode-action:focus-visible { border-color: var(--hud-accent); background: #2d2a26; outline: none; box-shadow: inset 2px 0 0 var(--hud-accent); }
+
+.gum-hud-execution-config .window-header { flex: 0 0 25px; height: 25px; padding: 0 6px; border-bottom: 1px solid #44392d; background: #121419; line-height: 24px; }
+.gum-hud-execution-config .window-title { font-size: 10px; font-weight: 700; letter-spacing: .02em; }
+.gum-hud-execution-config .window-header a { font-size: 10px; }
 .gum-hud-execution-config .window-content { padding: 0; background: #17191f; color: #eee4d2; }
 .gum-hud-execution-form { display: flex; flex-direction: column; height: 100%; min-height: 0; }
-.gum-hud-execution-maneuver-tags { display: flex; flex-wrap: wrap; gap: 5px; padding: 10px 12px; border-bottom: 1px solid #70583e; background: #111318; }
-.gum-hud-execution-maneuver-tags button { width: auto; min-height: 28px; margin: 0; padding: 4px 9px; border: 1px solid #514536; border-radius: 13px; background: #242830; color: #c7bba9; font-size: 11px; line-height: 1.15; }
-.gum-hud-execution-maneuver-tags button:hover { border-color: #9b7448; color: #fff4df; }
-.gum-hud-execution-maneuver-tags button.is-selected { border-color: #d18a43; background: #6e5032; color: #fff4df; box-shadow: inset 0 0 0 1px #e4a45f55; }
+.gum-hud-execution-maneuver-tags { display: flex; flex-wrap: wrap; gap: 3px; padding: 6px; border-bottom: 1px solid #44392d; background: #15171c; }
+.gum-hud-execution-maneuver-tags button { width: auto; min-height: 24px; margin: 0; padding: 3px 7px; border: 1px solid transparent; border-radius: 3px; background: #202329; color: #aaa196; font-size: 9px; line-height: 1.15; }
+.gum-hud-execution-maneuver-tags button:hover { border-color: #70583e88; background: #272a30; color: #eee4d2; }
+.gum-hud-execution-maneuver-tags button.is-selected { border-color: #9d7445; background: #2b2926; color: #e9c78e; box-shadow: inset 2px 0 0 #a47947; }
 .gum-hud-execution-form label { display: flex; flex-direction: column; gap: 4px; color: #d9ab66; font-size: 10px; font-weight: 700; letter-spacing: .035em; text-transform: uppercase; }
-.gum-hud-execution-form input, .gum-hud-execution-form select { box-sizing: border-box; width: 100%; min-height: 31px; border: 1px solid #665440; border-radius: 4px; background: #242830; color: #eee4d2; }
-.gum-hud-execution-adders { display: grid; grid-template-columns: 1fr auto; align-items: end; gap: 8px; padding: 12px; border-bottom: 1px solid #3f372e; background: #1c1f26; }
-.gum-hud-execution-adders button { min-height: 31px; border: 1px solid #70583e; background: #292d35; color: #eee4d2; }
+.gum-hud-execution-form input, .gum-hud-execution-form select { box-sizing: border-box; width: 100%; min-height: 28px; border: 1px solid #494139; border-radius: 3px; background: #202329; color: #eee4d2; box-shadow: none; }
+.gum-hud-execution-form input:focus, .gum-hud-execution-form select:focus { border-color: #9d7445; outline: none; box-shadow: 0 0 0 1px #9d744544; }
+.gum-hud-execution-adders { display: grid; grid-template-columns: 1fr auto; align-items: end; gap: 6px; padding: 7px; border-bottom: 1px solid #44392d; background: #191b20; }
+.gum-hud-execution-adders button { min-height: 28px; border: 1px solid #514536; border-radius: 3px; background: #25282e; color: #eee4d2; }
+.gum-hud-execution-adders button:hover { border-color: #9d7445; background: #2b2926; color: #e9c78e; }
 .gum-hud-execution-adders p { grid-column: 1 / -1; margin: 0; color: #aaa39a; font-size: 10px; }
-.gum-hud-execution-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 10px; }
-.gum-hud-execution-binding { display: grid; grid-template-columns: 42px minmax(125px, 1.35fr) minmax(90px, 1fr) 105px 112px 32px; align-items: end; gap: 7px; margin-bottom: 7px; padding: 7px; border: 1px solid #514536; border-radius: 5px; background: #242830; }
+.gum-hud-execution-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 6px; }
+.gum-hud-execution-binding { display: grid; grid-template-columns: 36px minmax(125px, 1.35fr) minmax(90px, 1fr) 96px 105px 28px; align-items: end; gap: 5px; margin-bottom: 3px; padding: 5px; border: 1px solid transparent; border-radius: 2px; background: #202329; box-shadow: inset 0 -1px #ffffff0a; }
+.gum-hud-execution-binding:hover { border-color: #70583e66; background: #25282e; }
 .gum-hud-execution-binding.is-missing { border-color: #9a4d48; opacity: .72; }
-.gum-hud-execution-binding > img { align-self: center; width: 42px; height: 42px; border-radius: 3px; object-fit: cover; }
+.gum-hud-execution-binding > img { align-self: center; width: 36px; height: 36px; border-radius: 2px; object-fit: cover; }
 .gum-hud-execution-source { align-self: center; display: flex; flex-direction: column; min-width: 0; }
 .gum-hud-execution-source strong, .gum-hud-execution-source small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .gum-hud-execution-source small { color: #aaa39a; font-size: 9px; }
-.gum-hud-execution-binding > button { grid-column: -2 / -1; align-self: center; width: 30px; height: 30px; padding: 0; border: 1px solid #744b43; background: #342726; color: #e0b6aa; }
+.gum-hud-execution-binding > button { grid-column: -2 / -1; align-self: center; width: 27px; height: 27px; padding: 0; border: 1px solid #744b4388; border-radius: 3px; background: #2e2525; color: #d8aaa0; }
+.gum-hud-execution-binding > button:hover { border-color: #a86257; background: #3a2928; color: #f1c5bb; }
 .gum-hud-execution-empty { margin: 18px; color: #aaa39a; font-style: italic; text-align: center; }
 @media (max-width: 760px) {
   .gum-hud-execution-binding { grid-template-columns: 38px 1fr 1fr; }
