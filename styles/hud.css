@@ -307,22 +307,36 @@ body.gum-hud-hide-hotbar #hotbar { display: none !important; }
   background: rgba(23, 25, 31, .985);
   box-shadow: 0 8px 18px #0008;
 }
-.gum-hud-domino { min-height: 48px; border-color: var(--hud-line); border-radius: 3px; background: var(--hud-surface); }
-.gum-hud-domino-source { flex-basis: 48px; width: 48px; height: 48px; }
+.gum-hud-domino { min-height: 44px; border-color: transparent; border-radius: 2px; background: var(--hud-surface); box-shadow: inset 0 -1px rgba(255, 255, 255, .035); transition: background-color 120ms ease, box-shadow 120ms ease; }
+.gum-hud-domino:hover { background: var(--hud-surface-hover); box-shadow: inset 2px 0 var(--hud-accent), inset 0 -1px rgba(255, 255, 255, .035); }
+.gum-hud-domino-source { flex-basis: 40px; width: 40px; height: 44px; }
 .gum-hud-domino-source span { background: rgba(12, 13, 17, .88); }
-#gum-hud-bar .gum-hud-domino-defense { min-height: 48px; border-left-color: var(--hud-line); }
+#gum-hud-bar .gum-hud-domino-defense { flex-basis: 64px; width: 64px; min-height: 44px; gap: 0; padding: 2px 5px; border-left-color: var(--hud-line); background: transparent; }
+.gum-hud-domino-defense strong { color: var(--hud-accent-bright); font-size: 14px; line-height: 15px; }
+.gum-hud-domino-defense span { color: var(--hud-muted); font-size: 8px; line-height: 9px; }
 #gum-hud-bar .gum-hud-attack-domino,
 #gum-hud-bar .gum-hud-ability-domino,
-#gum-hud-bar .gum-hud-consumable-domino { min-height: 52px; border-color: var(--hud-line); background: var(--hud-surface); }
-.gum-hud-mode-icon { flex-basis: 48px; width: 48px; min-height: 52px; border-right-color: var(--hud-line); color: var(--hud-accent-bright); }
-.gum-hud-mode-icon img { max-height: 52px; }
-.gum-hud-mode-name { padding: 3px 6px; }
-.gum-hud-mode-name strong { color: #e7ddcd; font-size: 11px; }
+#gum-hud-bar .gum-hud-consumable-domino { min-height: 44px; border-color: transparent; background: var(--hud-surface); }
+#gum-hud-bar .gum-hud-attack-domino { width: min(390px, calc(90vw - 16px)); }
+#gum-hud-bar .gum-hud-ability-domino { width: min(420px, calc(90vw - 16px)); }
+#gum-hud-bar .gum-hud-ability-domino.is-skill { width: min(310px, calc(90vw - 16px)); }
+#gum-hud-bar .gum-hud-consumable-domino { width: min(350px, calc(90vw - 16px)); }
+.gum-hud-mode-icon { flex-basis: 38px; width: 38px; min-height: 44px; border-right-color: var(--hud-line); color: var(--hud-accent-bright); font-size: 17px; }
+.gum-hud-mode-icon img { max-height: 44px; }
+.gum-hud-mode-name { flex-basis: 82px; min-width: 72px; padding: 3px 7px; }
+.gum-hud-mode-name strong { color: #e7ddcd; font-size: 10px; line-height: 12px; }
+.gum-hud-mode-name small { font-size: 8px; line-height: 10px; }
 .gum-hud-mode-name small, .gum-hud-mode-damage em { color: var(--hud-muted); }
 .gum-hud-mode-stat, .gum-hud-mode-damage, #gum-hud-bar .gum-hud-mode-action { border-left-color: var(--hud-line); }
 .gum-hud-mode-stat small, .gum-hud-mode-damage small, .gum-hud-consumable-balance small, .gum-hud-consumable-use small { color: #b79a72; }
-#gum-hud-bar .gum-hud-mode-action { background: #24272d; }
-#gum-hud-bar .gum-hud-mode-action:hover, #gum-hud-bar .gum-hud-mode-action:focus-visible { border-color: var(--hud-accent); background: #2d2a26; outline: none; box-shadow: inset 2px 0 0 var(--hud-accent); }
+#gum-hud-bar .gum-hud-mode-stat { flex-basis: 50px; padding: 3px 5px; }
+#gum-hud-bar .gum-hud-mode-damage { flex-basis: 116px; min-width: 92px; padding: 3px 7px; }
+.gum-hud-mode-stat small, .gum-hud-mode-damage small { font-size: 6px; line-height: 8px; }
+.gum-hud-mode-stat strong { color: #f1e5d2; font-size: 14px; line-height: 16px; }
+.gum-hud-mode-damage strong { color: #e9dfcf; font-size: 9px; line-height: 11px; }
+.gum-hud-mode-damage em { font-size: 7px; line-height: 9px; }
+#gum-hud-bar .gum-hud-mode-action { background: transparent; }
+#gum-hud-bar .gum-hud-mode-action:hover, #gum-hud-bar .gum-hud-mode-action:focus-visible { border-color: var(--hud-line); background: #302c27; outline: none; box-shadow: inset 0 -2px 0 var(--hud-accent); }
 
 .gum-hud-execution-config .window-header { flex: 0 0 25px; height: 25px; padding: 0 6px; border-bottom: 1px solid #44392d; background: #121419; line-height: 24px; }
 .gum-hud-execution-config .window-title { font-size: 10px; font-weight: 700; letter-spacing: .02em; }
@@ -333,7 +347,7 @@ body.gum-hud-hide-hotbar #hotbar { display: none !important; }
 .gum-hud-execution-maneuver-tags button { width: auto; min-height: 24px; margin: 0; padding: 3px 7px; border: 1px solid transparent; border-radius: 3px; background: #202329; color: #aaa196; font-size: 9px; line-height: 1.15; }
 .gum-hud-execution-maneuver-tags button:hover { border-color: #70583e88; background: #272a30; color: #eee4d2; }
 .gum-hud-execution-maneuver-tags button.is-selected { border-color: #9d7445; background: #2b2926; color: #e9c78e; box-shadow: inset 2px 0 0 #a47947; }
-.gum-hud-execution-form label { display: flex; flex-direction: column; gap: 4px; color: #d9ab66; font-size: 10px; font-weight: 700; letter-spacing: .035em; text-transform: uppercase; }
+.gum-hud-execution-form label { display: flex; flex-direction: column; gap: 2px; color: #c69d66; font-size: 8px; font-weight: 700; letter-spacing: .045em; line-height: 9px; text-transform: uppercase; }
 .gum-hud-execution-form input, .gum-hud-execution-form select { box-sizing: border-box; width: 100%; min-height: 28px; border: 1px solid #494139; border-radius: 3px; background: #202329; color: #eee4d2; box-shadow: none; }
 .gum-hud-execution-form input:focus, .gum-hud-execution-form select:focus { border-color: #9d7445; outline: none; box-shadow: 0 0 0 1px #9d744544; }
 .gum-hud-execution-adders { display: grid; grid-template-columns: 1fr auto; align-items: end; gap: 6px; padding: 7px; border-bottom: 1px solid #44392d; background: #191b20; }
@@ -341,13 +355,15 @@ body.gum-hud-hide-hotbar #hotbar { display: none !important; }
 .gum-hud-execution-adders button:hover { border-color: #9d7445; background: #2b2926; color: #e9c78e; }
 .gum-hud-execution-adders p { grid-column: 1 / -1; margin: 0; color: #aaa39a; font-size: 10px; }
 .gum-hud-execution-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 6px; }
-.gum-hud-execution-binding { display: grid; grid-template-columns: 36px minmax(125px, 1.35fr) minmax(90px, 1fr) 96px 105px 28px; align-items: end; gap: 5px; margin-bottom: 3px; padding: 5px; border: 1px solid transparent; border-radius: 2px; background: #202329; box-shadow: inset 0 -1px #ffffff0a; }
+.gum-hud-execution-binding { display: grid; grid-template-columns: 34px minmax(145px, 1.5fr) minmax(78px, 1fr) 90px 100px 27px; align-items: center; gap: 5px; margin-bottom: 3px; padding: 4px; border: 1px solid transparent; border-radius: 2px; background: #202329; box-shadow: inset 0 -1px #ffffff0a; }
 .gum-hud-execution-binding:hover { border-color: #70583e66; background: #25282e; }
 .gum-hud-execution-binding.is-missing { border-color: #9a4d48; opacity: .72; }
-.gum-hud-execution-binding > img { align-self: center; width: 36px; height: 36px; border-radius: 2px; object-fit: cover; }
+.gum-hud-execution-binding > img { align-self: center; width: 34px; height: 34px; border-radius: 2px; object-fit: cover; }
 .gum-hud-execution-source { align-self: center; display: flex; flex-direction: column; min-width: 0; }
 .gum-hud-execution-source strong, .gum-hud-execution-source small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.gum-hud-execution-source small { color: #aaa39a; font-size: 9px; }
+.gum-hud-execution-source strong { color: #e8ddcd; font-size: 10px; line-height: 12px; }
+.gum-hud-execution-source small { color: #928b82; font-size: 8px; line-height: 10px; }
+.gum-hud-execution-binding input, .gum-hud-execution-binding select { min-height: 25px; height: 25px; padding-block: 1px; font-size: 9px; }
 .gum-hud-execution-binding > button { grid-column: -2 / -1; align-self: center; width: 27px; height: 27px; padding: 0; border: 1px solid #744b4388; border-radius: 3px; background: #2e2525; color: #d8aaa0; }
 .gum-hud-execution-binding > button:hover { border-color: #a86257; background: #3a2928; color: #f1c5bb; }
 .gum-hud-execution-empty { margin: 18px; color: #aaa39a; font-style: italic; text-align: center; }
