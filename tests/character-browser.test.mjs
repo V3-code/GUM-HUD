@@ -19,6 +19,10 @@ test("character quick access uses one reusable browser with four direct category
   assert.match(hud, /let characterBrowser = null/);
   assert.match(hud, /new CharacterResourceBrowser/);
   assert.match(hud, /characterBrowser\.category === category/);
+  assert.match(hud, /characterBrowserQueue/);
+  assert.match(hud, /characterBrowserClosePromise/);
+  assert.match(hud, /requestCharacterBrowser/);
+  assert.match(browser, /whenRendered/);
   assert.match(hud, /closeCharacterBrowser\(\)/);
   assert.match(template, /data-browser-category/);
   assert.match(css, /\.gum-hud-resource-rail/);

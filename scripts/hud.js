@@ -24,6 +24,8 @@ let combatOptionsPanelOpen = false;
 let combatOptionsPanelExpanded = false;
 let combatOptionsManeuverKey = "";
 let characterBrowser = null;
+let characterBrowserQueue = Promise.resolve();
+let characterBrowserClosePromise = Promise.resolve();
 const VISIBLE_MANEUVERS = 15;
 
 const escape = value => String(value ?? "").replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
@@ -52,10 +54,12 @@ function openHud(token, { notify = true } = {}) {
   render();
   return true;
 }
-function closeCharacterBrowser() {
+async function closeCharacterBrowser() {
   const browser = characterBrowser;
   characterBrowser = null;
-  browser?.close({ animate: false });
+  if (browser) characterBrowserClosePromise = browser.close({ animate: false })
+    .catch(error => console.error("GUM HUD | Closing character browser", error));
+  await characterBrowserClosePromise;
 }
 function retainHudOwnership(actor, { notify = true } = {}) {
   if (ownsActor(actor)) return true;
@@ -268,23 +272,29 @@ function characterBrowserActions() {
   };
 }
 
-function openCharacterBrowser(actor, category) {
+async function openCharacterBrowser(actor, category) {
   if (!ownsActor(actor)) return;
   if (characterBrowser?.actorUuid === actor.uuid) {
     if (characterBrowser.category === category) {
-      closeCharacterBrowser();
+      await closeCharacterBrowser();
       render();
       return;
     }
-    characterBrowser.setCategory(category);
-    if (characterBrowser._minimized) characterBrowser.maximize?.();
-    characterBrowser.bringToTop?.();
-    return;
   }
-  closeCharacterBrowser();
-  characterBrowser = new CharacterResourceBrowser({ actor, category, actions: characterBrowserActions() });
-  characterBrowser.render(true);
+  await closeCharacterBrowser();
+  const browser = new CharacterResourceBrowser({ actor, category, actions: characterBrowserActions() });
+  characterBrowser = browser;
+  browser.render(true);
+  await browser.whenRendered();
+  if (characterBrowser !== browser) return;
   render();
+}
+
+function requestCharacterBrowser(actor, category) {
+  characterBrowserQueue = characterBrowserQueue
+    .catch(error => console.error("GUM HUD | Character browser queue", error))
+    .then(() => openCharacterBrowser(actor, category));
+  return characterBrowserQueue;
 }
 
 function groupedDefenses(actor, kind) {
@@ -596,7 +606,7 @@ function render() {
     if (!button) return;
     try {
       if (button.hasAttribute("data-close")) { pinnedToken = null; closeCharacterBrowser(); render(); return; }
-      if (button.dataset.characterBrowser) { openCharacterBrowser(actor, button.dataset.characterBrowser); return; }
+      if (button.dataset.characterBrowser) { await requestCharacterBrowser(actor, button.dataset.characterBrowser); return; }
       if (button.dataset.toggleRegion) {
         const key = button.dataset.toggleRegion;
         const expanded = { ...game.settings.get(MODULE, "expandedRegions") };

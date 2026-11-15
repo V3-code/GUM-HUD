@@ -86,6 +86,7 @@ export class CharacterResourceBrowser extends FormApplication {
     this.query = "";
     this.expandedItemId = null;
     this.actions = actions;
+    this._firstRenderPromise = new Promise(resolve => { this._resolveFirstRender = resolve; });
   }
 
   static get defaultOptions() {
@@ -235,7 +236,11 @@ export class CharacterResourceBrowser extends FormApplication {
     html.on("click", "[data-roll-damage-attack]", event => this._execute("damageAttack", event.currentTarget.dataset.itemId, event.currentTarget.dataset.rollDamageAttack));
     html.on("click", "[data-use-consumable]", event => this._execute("consume", event.currentTarget.dataset.useConsumable));
     this._applySearch(html);
+    this._resolveFirstRender?.();
+    this._resolveFirstRender = null;
   }
+
+  whenRendered() { return this._firstRenderPromise; }
 
   async _execute(action, itemId, secondaryId = null) {
     if (!this._actorAvailable()) return this.close();
@@ -271,8 +276,9 @@ export class CharacterResourceBrowser extends FormApplication {
 
   async close(options = {}) {
     await this._saveState();
+    const result = await super.close(options);
     this.actions.closed?.(this);
-    return super.close(options);
+    return result;
   }
 
   async _updateObject() {}
