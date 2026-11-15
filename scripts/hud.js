@@ -39,6 +39,43 @@ const format = (key, data, fallback) => {
   const value = game.i18n.format(id, data);
   return value === id ? fallback : value;
 };
+const finiteNumber = value => {
+  if (value == null || value === "") return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+};
+const displayNumber = value => finiteNumber(value) ?? "—";
+
+function identityResource(attribute, key) {
+  const current = finiteNumber(attribute?.value ?? attribute?.current);
+  const maximum = finiteNumber(attribute?.final ?? attribute?.max);
+  const percent = maximum > 0 && current != null ? Math.max(0, Math.min(100, current / maximum * 100)) : 0;
+  const isLow = maximum > 0 && current != null && current <= maximum / 3;
+  const currentLabel = displayNumber(current);
+  const maximumLabel = displayNumber(maximum);
+  const title = `${key}: ${currentLabel} / ${maximumLabel}`;
+  return `<span class="gum-hud-vital ${isLow ? "is-low" : ""}" title="${escape(title)}" aria-label="${escape(title)}"><span class="gum-hud-vital-line"><small>${key}</small><b>${escape(currentLabel)}</b><em>/${escape(maximumLabel)}</em></span><span class="gum-hud-vital-meter" aria-hidden="true"><i style="width:${percent.toFixed(2)}%"></i></span></span>`;
+}
+
+function identityMovement(actor) {
+  const attributes = actor.system?.attributes || {};
+  const definitions = [
+    ["basic_move", localize("Identity.GroundMovement", "Terrestre")],
+    ["enhanced_move", localize("Identity.EnhancedMovement", "Ampliado")],
+    ["air_move", localize("Identity.AirMovement", "Aéreo")],
+    ["water_move", localize("Identity.WaterMovement", "Aquático")],
+    ["burrow_move", localize("Identity.BurrowMovement", "Escavação")]
+  ];
+  const modes = definitions.map(([key, label]) => ({
+    key, label, value: finiteNumber(attributes[key]?.final ?? attributes[key]?.value)
+  })).filter(mode => mode.value != null && (mode.key === "basic_move" || mode.value > 0));
+  const ground = modes.find(mode => mode.key === "basic_move");
+  const additional = modes.filter(mode => mode.key !== "basic_move");
+  const title = modes.length
+    ? modes.map(mode => `${mode.label}: ${mode.value}`).join("\n")
+    : localize("Identity.MovementUnavailable", "Deslocamento indisponível");
+  return `<span class="gum-hud-movement" title="${escape(title)}" aria-label="${escape(title)}"><i class="fas fa-shoe-prints" aria-hidden="true"></i><small>${escape(localize("Identity.MoveShort", "DESL"))}</small><b>${escape(displayNumber(ground?.value))}</b>${additional.length ? `<em>+${additional.length}</em>` : ""}</span>`;
+}
 const api = () => game.gum?.api;
 const promptRoll = (actor, rollData) => api().rolls.fromHotbar({ actorUuid: actor.uuid, rollData });
 const currentToken = () => pinnedToken?.object && canvas?.scene?.id === pinnedToken.parent?.id ? pinnedToken.object : null;
@@ -566,7 +603,8 @@ function render() {
     ["power", "fa-bolt", localize("CharacterBrowser.Powers", "Poderes")],
     ["equipment", "fa-toolbox", localize("CharacterBrowser.Equipment", "Equipamentos")]
   ].map(([category, icon, label]) => `<button type="button" data-character-browser="${category}" class="${characterBrowser?.actorUuid === actor.uuid && characterBrowser.category === category ? "is-active" : ""}" title="${escape(label)}"><i class="fas ${icon}" aria-hidden="true"></i></button>`).join("");
-  root.innerHTML = `<div class="gum-hud-region gum-hud-identity-region gum-hud-summary"><div class="gum-hud-loadout" aria-label="${escape(localize("Identity.QuickEquipment", "Equipamentos rápidos"))}">${equipmentSlots}</div><img src="${escape(tokenForHud.document.texture?.src || actor.img)}" alt=""><div class="gum-hud-summary-info"><strong>${escape(actor.name)}</strong><small>HP ${escape(hp.value ?? hp.current ?? "—")} · FP ${escape(fp.value ?? fp.current ?? "—")}</small></div><button data-close title="${escape(localize("General.Close", "Fechar"))}">×</button></div><nav class="gum-hud-resource-rail" aria-label="${escape(localize("CharacterBrowser.Access", "Acesso rápido"))}">${resourceRail}</nav><div class="gum-hud-region gum-hud-maneuver-region ${regionIsExpanded("maneuvers") ? "is-expanded" : ""}">${maneuverChrome(localize("Maneuvers.Title", "MANOBRAS"), maneuverExpandable, combatOptions, actor)}<div class="gum-hud-maneuvers">${maneuvers || `<small>${localize("Maneuvers.SelectGroup", "Selecione um grupo nas configurações.")}</small>`}</div><div class="gum-hud-maneuver-palette" hidden>${extraManeuvers}</div>${combatOptionsPanelMarkup(actor, combatOptions)}</div><div class="gum-hud-region gum-hud-combat ${regionIsExpanded("combat") ? "is-expanded" : ""}">${regionChrome(localize("Combat.Title", "OPÇÕES DE COMBATE"), "combat", combatExpandable)}<div class="gum-hud-cards">${itemCards || `<small>${localize("Combat.Empty", "Arraste equipamentos para os slots ou marque outras opções como favoritas.")}</small>`}</div><div class="gum-hud-expanded"></div></div><div class="gum-hud-region gum-hud-defense-region">${regionChrome(localize("Defense.Title", "DEFESAS ATIVAS"), "defenses", false)}<div class="gum-hud-defenses"></div><div class="gum-hud-expanded"></div></div>${consumableRegion}`;
+  const identityVitals = `${identityResource(hp, "HP")}${identityResource(fp, "FP")}${identityMovement(actor)}`;
+  root.innerHTML = `<div class="gum-hud-region gum-hud-identity-region gum-hud-summary"><div class="gum-hud-loadout" aria-label="${escape(localize("Identity.QuickEquipment", "Equipamentos rápidos"))}">${equipmentSlots}</div><img src="${escape(tokenForHud.document.texture?.src || actor.img)}" alt=""><div class="gum-hud-summary-info"><strong>${escape(actor.name)}</strong><div class="gum-hud-vitals">${identityVitals}</div></div><button data-close title="${escape(localize("General.Close", "Fechar"))}">×</button></div><nav class="gum-hud-resource-rail" aria-label="${escape(localize("CharacterBrowser.Access", "Acesso rápido"))}">${resourceRail}</nav><div class="gum-hud-region gum-hud-maneuver-region ${regionIsExpanded("maneuvers") ? "is-expanded" : ""}">${maneuverChrome(localize("Maneuvers.Title", "MANOBRAS"), maneuverExpandable, combatOptions, actor)}<div class="gum-hud-maneuvers">${maneuvers || `<small>${localize("Maneuvers.SelectGroup", "Selecione um grupo nas configurações.")}</small>`}</div><div class="gum-hud-maneuver-palette" hidden>${extraManeuvers}</div>${combatOptionsPanelMarkup(actor, combatOptions)}</div><div class="gum-hud-region gum-hud-combat ${regionIsExpanded("combat") ? "is-expanded" : ""}">${regionChrome(localize("Combat.Title", "OPÇÕES DE COMBATE"), "combat", combatExpandable)}<div class="gum-hud-cards">${itemCards || `<small>${localize("Combat.Empty", "Arraste equipamentos para os slots ou marque outras opções como favoritas.")}</small>`}</div><div class="gum-hud-expanded"></div></div><div class="gum-hud-region gum-hud-defense-region">${regionChrome(localize("Defense.Title", "DEFESAS ATIVAS"), "defenses", false)}<div class="gum-hud-defenses"></div><div class="gum-hud-expanded"></div></div>${consumableRegion}`;
   if (openSelection?.kind === "defense" && !defenseEntries(actor, openSelection.key).length) openSelection = null;
   if (openSelection?.kind === "specialDefense" && !specialDefenses.length) openSelection = null;
   if (openSelection?.kind === "consumables" && !consumables.length) openSelection = null;

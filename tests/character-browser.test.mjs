@@ -68,3 +68,14 @@ test("browser localization stays aligned in Portuguese and English", () => {
   assert.equal(portuguese.GUMHUD.CharacterBrowser.Skills, "Perícias");
   assert.equal(english.GUMHUD.CharacterBrowser.Skills, "Skills");
 });
+
+test("identity summary exposes current and maximum resources plus effective movement", () => {
+  assert.match(hud, /identityResource\(hp, "HP"\)/);
+  assert.match(hud, /identityResource\(fp, "FP"\)/);
+  assert.match(hud, /identityMovement\(actor\)/);
+  assert.match(hud, /attribute\?\.final \?\? attribute\?\.max/);
+  assert.match(hud, /attributes\[key\]\?\.final \?\? attributes\[key\]\?\.value/);
+  assert.match(css, /\.gum-hud-vital-meter/);
+  assert.match(css, /\.gum-hud-movement/);
+  assert.deepEqual(Object.keys(portuguese.GUMHUD.Identity).sort(), Object.keys(english.GUMHUD.Identity).sort());
+});
