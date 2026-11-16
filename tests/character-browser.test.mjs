@@ -111,6 +111,8 @@ test("client HUD preferences can restore or dock the Foundry hotbar above the eq
   assert.match(css, /flex-wrap: wrap;/);
   assert.match(hud, /--gum-hud-hotbar-bottom/);
   assert.match(hud, /--gum-hud-hotbar-shift-x/);
+  assert.match(hud, /loadoutRect\.width - hotbarRect\.width/);
+  assert.match(css, /\.gum-hud-hotbar-layout button \{[^}]*width: 100%/);
   assert.match(css, /\.gum-hud-preferences-panel/);
   assert.match(css, /\.gum-hud-resource-divider/);
   assert.deepEqual(Object.keys(portuguese.GUMHUD.Preferences).sort(), Object.keys(english.GUMHUD.Preferences).sort());

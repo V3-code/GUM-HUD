@@ -108,7 +108,7 @@ body.gum-hud-compact-hotbar #hotbar #hotbar-page-controls .hotbar-page-number { 
 .gum-hud-hotbar-layout.is-disabled { opacity: .38; pointer-events: none; }
 .gum-hud-hotbar-layout > small { display: block; margin: 0 2px 4px; color: #968d80; font-size: 7px; font-weight: 750; letter-spacing: .06em; text-transform: uppercase; }
 .gum-hud-hotbar-layout > div { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; }
-#gum-hud-bar .gum-hud-resource-rail .gum-hud-hotbar-layout button { display: flex; flex-direction: row; align-items: center; justify-content: flex-start; min-height: 28px; gap: 6px; padding: 4px 7px; border-color: transparent; background: #202329; color: #9f978c; }
+#gum-hud-bar .gum-hud-resource-rail .gum-hud-hotbar-layout button { display: flex; flex-direction: row; align-items: center; justify-content: flex-start; width: 100%; min-height: 28px; gap: 6px; padding: 4px 7px; border-color: transparent; background: #202329; color: #9f978c; text-align: left; }
 #gum-hud-bar .gum-hud-resource-rail .gum-hud-hotbar-layout button:hover { border-color: rgba(164, 121, 71, .4); background: #272a30; }
 #gum-hud-bar .gum-hud-resource-rail .gum-hud-hotbar-layout button.is-selected { border-color: rgba(164, 121, 71, .58); background: #302b24; color: #e8c98f; box-shadow: inset 0 -2px 0 #a47947; }
 .gum-hud-hotbar-layout button i { flex: 0 0 13px; width: 13px; font-size: 10px; text-align: center; }

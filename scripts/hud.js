@@ -557,7 +557,8 @@ function fitToFoundry(root) {
       document.body.style.setProperty("--gum-hud-hotbar-left", `${Math.max(8, Math.round(loadoutRect.left))}px`);
       document.body.style.setProperty("--gum-hud-hotbar-bottom", `${Math.max(8, Math.round(window.innerHeight - loadoutRect.top + 5))}px`);
       const hotbarRect = hotbar.getBoundingClientRect();
-      anchorHotbar(hotbar, loadoutRect.left, loadoutRect.top - hotbarRect.height - 5);
+      const centeredLeft = loadoutRect.left + ((loadoutRect.width - hotbarRect.width) / 2);
+      anchorHotbar(hotbar, centeredLeft, loadoutRect.top - hotbarRect.height - 5);
     }
   } else if (belowHotbar) {
     root.style.bottom = "48px";
