@@ -4,35 +4,47 @@ body.gum-hud-compact-hotbar #hotbar.compact,
 body.gum-hud-compact-hotbar #hotbar.md.offset,
 body.gum-hud-compact-hotbar #hotbar.sm,
 body.gum-hud-compact-hotbar #hotbar.min {
-  --hotbar-size: 27px;
   --button-size: 13px;
   position: fixed;
   right: auto;
-  bottom: var(--gum-hud-hotbar-bottom, 222px);
-  left: var(--gum-hud-hotbar-left, 8px);
+  bottom: 0;
+  left: 0;
   width: max-content;
-  height: 56px;
   margin: 0;
   gap: 2px;
-  transform: none;
+  transform: translate(var(--gum-hud-hotbar-shift-x, 0), var(--gum-hud-hotbar-shift-y, 0));
 }
+body.gum-hud-hotbar-equipment #hotbar,
+body.gum-hud-hotbar-equipment #hotbar.compact,
+body.gum-hud-hotbar-equipment #hotbar.md.offset,
+body.gum-hud-hotbar-equipment #hotbar.sm,
+body.gum-hud-hotbar-equipment #hotbar.min { --hotbar-size: 27px; bottom: var(--gum-hud-hotbar-bottom, 222px); left: var(--gum-hud-hotbar-left, 8px); height: 56px; }
+body.gum-hud-hotbar-below #hotbar,
+body.gum-hud-hotbar-below #hotbar.compact,
+body.gum-hud-hotbar-below #hotbar.md.offset,
+body.gum-hud-hotbar-below #hotbar.sm,
+body.gum-hud-hotbar-below #hotbar.min { --hotbar-size: 32px; bottom: 8px; left: 246px; height: 32px; }
 body.gum-hud-compact-hotbar #hotbar #action-bar,
 body.gum-hud-compact-hotbar #hotbar.compact #action-bar,
 body.gum-hud-compact-hotbar #hotbar.md.offset #action-bar,
 body.gum-hud-compact-hotbar #hotbar.sm #action-bar {
-  width: 143px;
-  height: 56px;
-  flex-wrap: wrap;
   align-content: center;
   gap: 2px;
 }
-body.gum-hud-compact-hotbar #hotbar #action-bar .slot { width: 27px; height: 27px; border-width: 1px; border-radius: 3px; }
+body.gum-hud-hotbar-equipment #hotbar #action-bar { width: 143px; height: 56px; flex-wrap: wrap; }
+body.gum-hud-hotbar-below #hotbar #action-bar { width: auto; height: 32px; flex-wrap: nowrap; gap: 3px; }
+body.gum-hud-compact-hotbar #hotbar #action-bar .slot { border-width: 1px; border-radius: 3px; }
+body.gum-hud-hotbar-equipment #hotbar #action-bar .slot { width: 27px; height: 27px; }
+body.gum-hud-hotbar-below #hotbar #action-bar .slot { width: 32px; height: 32px; }
 body.gum-hud-compact-hotbar #hotbar #action-bar .slot:hover,
 body.gum-hud-compact-hotbar #hotbar #action-bar .slot.drop-target { border-width: 1px; }
 body.gum-hud-compact-hotbar #hotbar #action-bar .slot .slot-icon { border-radius: 2px; }
 body.gum-hud-compact-hotbar #hotbar #action-bar .slot .key { width: 12px; padding: 0; border-radius: 2px 0 3px; font-size: 8px; line-height: 12px; }
-body.gum-hud-compact-hotbar #hotbar .hotbar-controls { height: 56px; gap: 1px; }
+body.gum-hud-compact-hotbar #hotbar .hotbar-controls { gap: 1px; }
+body.gum-hud-hotbar-equipment #hotbar .hotbar-controls { height: 56px; }
+body.gum-hud-hotbar-below #hotbar .hotbar-controls { height: 32px; }
 body.gum-hud-compact-hotbar #hotbar .hotbar-controls button { --button-size: 13px; --control-size: 13px; font-size: 9px; }
+body.gum-hud-hotbar-below #hotbar .hotbar-controls button { --button-size: 15px; --control-size: 15px; font-size: 10px; }
 body.gum-hud-compact-hotbar #hotbar #hotbar-controls-left { align-content: center; }
 body.gum-hud-compact-hotbar #hotbar #hotbar-controls-right > div.flexcol { justify-content: center; gap: 2px; }
 body.gum-hud-compact-hotbar #hotbar #hotbar-page-controls .hotbar-page-control { font-size: 9px; }
@@ -91,6 +103,15 @@ body.gum-hud-compact-hotbar #hotbar #hotbar-page-controls .hotbar-page-number { 
 .gum-hud-preference-toggle > i > b { position: absolute; top: 2px; left: 2px; width: 7px; height: 7px; border-radius: 50%; background: #82786a; transition: left 120ms ease, background-color 120ms ease; }
 .gum-hud-preference-toggle.is-enabled > i { border-color: #9b7444; background: #6d50324d; }
 .gum-hud-preference-toggle.is-enabled > i > b { left: 13px; background: #e0b36d; }
+.gum-hud-hotbar-layout { margin-top: 5px; padding-top: 5px; border-top: 1px solid rgba(255, 255, 255, .065); transition: opacity 120ms ease; }
+.gum-hud-hotbar-layout.is-disabled { opacity: .38; pointer-events: none; }
+.gum-hud-hotbar-layout > small { display: block; margin: 0 2px 4px; color: #968d80; font-size: 7px; font-weight: 750; letter-spacing: .06em; text-transform: uppercase; }
+.gum-hud-hotbar-layout > div { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 3px; }
+#gum-hud-bar .gum-hud-resource-rail .gum-hud-hotbar-layout button { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 39px; gap: 3px; padding: 3px 2px; border-color: transparent; background: #202329; color: #9f978c; }
+#gum-hud-bar .gum-hud-resource-rail .gum-hud-hotbar-layout button:hover { border-color: rgba(164, 121, 71, .4); background: #272a30; }
+#gum-hud-bar .gum-hud-resource-rail .gum-hud-hotbar-layout button.is-selected { border-color: rgba(164, 121, 71, .58); background: #302b24; color: #e8c98f; box-shadow: inset 0 -2px 0 #a47947; }
+.gum-hud-hotbar-layout button i { font-size: 10px; }
+.gum-hud-hotbar-layout button span { overflow: hidden; max-width: 100%; font-size: 6px; line-height: 8px; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
 .gum-hud-region { --region-rgb: 166, 143, 108; --region-title-rgb: 224, 204, 172; position: relative; display: flex; flex-direction: column; gap: 5px; min-width: 0; min-height: 110px; padding: 4px 7px 7px; border: 1px solid rgba(var(--region-rgb), .48); border-radius: 5px; background: #17191ff2; box-shadow: inset 0 1px 0 rgba(255, 255, 255, .035); }
 .gum-hud-region header { order: 10; display: flex; align-items: center; justify-content: center; min-height: 22px; margin: 0 -7px -7px; padding: 0; border-top: 1px solid rgba(var(--region-rgb), .24); background: rgba(var(--region-rgb), .035); color: rgb(var(--region-title-rgb)); font-weight: 700; font-size: 11px; letter-spacing: .07em; text-align: center; }
 .gum-hud-region header > span { padding: 4px 7px 3px; }

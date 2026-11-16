@@ -97,16 +97,20 @@ test("active effects use the character browser and the loadout keeps six indepen
 test("client HUD preferences can restore or dock the Foundry hotbar above the equipment", () => {
   assert.match(hud, /data-hud-preferences/);
   assert.match(hud, /data-toggle-foundry-hotbar/);
-  assert.match(hud, /data-toggle-compact-hotbar/);
+  assert.match(hud, /data-hotbar-layout="\$\{value\}"/);
   assert.match(hud, /game\.settings\.set\(MODULE, "hideHotbar"/);
-  assert.match(hud, /game\.settings\.set\(MODULE, "compactHotbar"/);
+  assert.match(hud, /game\.settings\.set\(MODULE, "hotbarLayout"/);
+  assert.match(hud, /default: "equipment"/);
   assert.match(hud, /window\.innerHeight - hotbarTop \+ 8/);
   assert.match(hud, /Hooks\.on\("renderHotbar"/);
   assert.match(css, /body\.gum-hud-compact-hotbar #hotbar/);
+  assert.match(css, /body\.gum-hud-hotbar-equipment #hotbar/);
+  assert.match(css, /body\.gum-hud-hotbar-below #hotbar/);
   assert.match(css, /width: 143px;/);
   assert.match(css, /height: 56px;/);
   assert.match(css, /flex-wrap: wrap;/);
   assert.match(hud, /--gum-hud-hotbar-bottom/);
+  assert.match(hud, /--gum-hud-hotbar-shift-x/);
   assert.match(css, /\.gum-hud-preferences-panel/);
   assert.match(css, /\.gum-hud-resource-divider/);
   assert.deepEqual(Object.keys(portuguese.GUMHUD.Preferences).sort(), Object.keys(english.GUMHUD.Preferences).sort());
