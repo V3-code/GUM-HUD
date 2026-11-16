@@ -529,6 +529,14 @@ function combatOptionsPanelMarkup(actor, options) {
   return `<aside class="gum-hud-combat-options-panel ${combatOptionsPanelOpen ? "is-open" : ""} ${combatOptionsPanelExpanded ? "is-expanded" : ""}" aria-label="${escape(localize("CombatOptions.StrikeOptions", "Opções de execução"))}"><div class="gum-hud-combat-options-heading"><i class="fas fa-crosshairs" aria-hidden="true"></i><span>${localize("CombatOptions.StrikeOptions", "Opções de execução")}</span></div><div class="gum-hud-combat-option-groups">${sections}</div>${more}</aside>`;
 }
 
+function anchorHotbar(hotbar, desiredLeft, desiredTop) {
+  const rect = hotbar.getBoundingClientRect();
+  const previousX = Number.parseFloat(hotbar.style.getPropertyValue("--gum-hud-hotbar-shift-x")) || 0;
+  const previousY = Number.parseFloat(hotbar.style.getPropertyValue("--gum-hud-hotbar-shift-y")) || 0;
+  hotbar.style.setProperty("--gum-hud-hotbar-shift-x", `${Math.round(previousX + desiredLeft - rect.left)}px`);
+  hotbar.style.setProperty("--gum-hud-hotbar-shift-y", `${Math.round(previousY + desiredTop - rect.top)}px`);
+}
+
 function fitToFoundry(root) {
   const sidebar = document.querySelector("#sidebar");
   const chat = document.querySelector("#chat-form");
@@ -548,12 +556,8 @@ function fitToFoundry(root) {
     if (loadoutRect && hotbar?.getClientRects().length) {
       document.body.style.setProperty("--gum-hud-hotbar-left", `${Math.max(8, Math.round(loadoutRect.left))}px`);
       document.body.style.setProperty("--gum-hud-hotbar-bottom", `${Math.max(8, Math.round(window.innerHeight - loadoutRect.top + 5))}px`);
-      hotbar.style.setProperty("--gum-hud-hotbar-shift-x", "0px");
-      hotbar.style.setProperty("--gum-hud-hotbar-shift-y", "0px");
       const hotbarRect = hotbar.getBoundingClientRect();
-      const desiredTop = loadoutRect.top - hotbarRect.height - 5;
-      hotbar.style.setProperty("--gum-hud-hotbar-shift-x", `${Math.round(loadoutRect.left - hotbarRect.left)}px`);
-      hotbar.style.setProperty("--gum-hud-hotbar-shift-y", `${Math.round(desiredTop - hotbarRect.top)}px`);
+      anchorHotbar(hotbar, loadoutRect.left, loadoutRect.top - hotbarRect.height - 5);
     }
   } else if (belowHotbar) {
     root.style.bottom = "48px";
@@ -561,11 +565,7 @@ function fitToFoundry(root) {
       const rootRect = root.getBoundingClientRect();
       const desiredLeft = rootRect.left + 238;
       const desiredTop = window.innerHeight - 40;
-      hotbar.style.setProperty("--gum-hud-hotbar-shift-x", "0px");
-      hotbar.style.setProperty("--gum-hud-hotbar-shift-y", "0px");
-      const hotbarRect = hotbar.getBoundingClientRect();
-      hotbar.style.setProperty("--gum-hud-hotbar-shift-x", `${Math.round(desiredLeft - hotbarRect.left)}px`);
-      hotbar.style.setProperty("--gum-hud-hotbar-shift-y", `${Math.round(desiredTop - hotbarRect.top)}px`);
+      anchorHotbar(hotbar, desiredLeft, desiredTop);
     }
   } else {
     document.body.style.removeProperty("--gum-hud-hotbar-left");

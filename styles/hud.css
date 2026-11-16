@@ -13,6 +13,7 @@ body.gum-hud-compact-hotbar #hotbar.min {
   margin: 0;
   gap: 2px;
   transform: translate(var(--gum-hud-hotbar-shift-x, 0), var(--gum-hud-hotbar-shift-y, 0));
+  transition: opacity 120ms ease !important;
 }
 body.gum-hud-hotbar-equipment #hotbar,
 body.gum-hud-hotbar-equipment #hotbar.compact,
@@ -106,12 +107,12 @@ body.gum-hud-compact-hotbar #hotbar #hotbar-page-controls .hotbar-page-number { 
 .gum-hud-hotbar-layout { margin-top: 5px; padding-top: 5px; border-top: 1px solid rgba(255, 255, 255, .065); transition: opacity 120ms ease; }
 .gum-hud-hotbar-layout.is-disabled { opacity: .38; pointer-events: none; }
 .gum-hud-hotbar-layout > small { display: block; margin: 0 2px 4px; color: #968d80; font-size: 7px; font-weight: 750; letter-spacing: .06em; text-transform: uppercase; }
-.gum-hud-hotbar-layout > div { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 3px; }
-#gum-hud-bar .gum-hud-resource-rail .gum-hud-hotbar-layout button { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 39px; gap: 3px; padding: 3px 2px; border-color: transparent; background: #202329; color: #9f978c; }
+.gum-hud-hotbar-layout > div { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; }
+#gum-hud-bar .gum-hud-resource-rail .gum-hud-hotbar-layout button { display: flex; flex-direction: row; align-items: center; justify-content: flex-start; min-height: 28px; gap: 6px; padding: 4px 7px; border-color: transparent; background: #202329; color: #9f978c; }
 #gum-hud-bar .gum-hud-resource-rail .gum-hud-hotbar-layout button:hover { border-color: rgba(164, 121, 71, .4); background: #272a30; }
 #gum-hud-bar .gum-hud-resource-rail .gum-hud-hotbar-layout button.is-selected { border-color: rgba(164, 121, 71, .58); background: #302b24; color: #e8c98f; box-shadow: inset 0 -2px 0 #a47947; }
-.gum-hud-hotbar-layout button i { font-size: 10px; }
-.gum-hud-hotbar-layout button span { overflow: hidden; max-width: 100%; font-size: 6px; line-height: 8px; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
+.gum-hud-hotbar-layout button i { flex: 0 0 13px; width: 13px; font-size: 10px; text-align: center; }
+.gum-hud-hotbar-layout button span { overflow: hidden; min-width: 0; max-width: 100%; font-size: 7px; line-height: 9px; text-align: left; text-overflow: ellipsis; white-space: nowrap; }
 .gum-hud-region { --region-rgb: 166, 143, 108; --region-title-rgb: 224, 204, 172; position: relative; display: flex; flex-direction: column; gap: 5px; min-width: 0; min-height: 110px; padding: 4px 7px 7px; border: 1px solid rgba(var(--region-rgb), .48); border-radius: 5px; background: #17191ff2; box-shadow: inset 0 1px 0 rgba(255, 255, 255, .035); }
 .gum-hud-region header { order: 10; display: flex; align-items: center; justify-content: center; min-height: 22px; margin: 0 -7px -7px; padding: 0; border-top: 1px solid rgba(var(--region-rgb), .24); background: rgba(var(--region-rgb), .035); color: rgb(var(--region-title-rgb)); font-weight: 700; font-size: 11px; letter-spacing: .07em; text-align: center; }
 .gum-hud-region header > span { padding: 4px 7px 3px; }
