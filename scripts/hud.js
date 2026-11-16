@@ -87,6 +87,7 @@ const controlledOwnedToken = () => {
   const controlled = (canvas?.tokens?.controlled || []).filter(token => ownsActor(token.actor));
   return controlled.length === 1 ? controlled[0] : null;
 };
+const ownedWorldActors = () => [...game.actors].filter(ownsActor);
 const currentActor = () => {
   const token = currentToken();
   if (token?.actor && ownsActor(token.actor)) return token.actor;
@@ -96,35 +97,9 @@ const currentActor = () => {
 const effectTarget = (actor, token = null) => token || (actor && !actor.isToken ? {
   actor,
   id: null,
-  name: actor.name || localize("ActorChooser.Target", "Personagem"),
+  name: actor.name || localize("Identity.Character", "Personagem"),
   document: { uuid: null, texture: { src: actor.img || "icons/svg/mystery-man.svg" } }
 } : null);
-
-async function chooseOwnedActor() {
-  const actors = [...game.actors].filter(ownsActor).sort((a, b) => a.name.localeCompare(b.name, game.i18n.lang));
-  if (!actors.length) return null;
-  if (actors.length === 1) return actors[0];
-  if (typeof Dialog !== "function") return null;
-  const options = actors.map(actor => `<option value="${escape(actor.uuid)}">${escape(actor.name)}</option>`).join("");
-  return new Promise(resolve => {
-    let settled = false;
-    const finish = actor => { if (!settled) { settled = true; resolve(actor); } };
-    new Dialog({
-      title: localize("ActorChooser.Title", "Escolher personagem do HUD"),
-      content: `<form class="gum-hud-actor-chooser"><label>${localize("ActorChooser.Label", "Personagem")}<select name="actorUuid">${options}</select></label></form>`,
-      buttons: {
-        open: {
-          icon: '<i class="fas fa-user"></i>',
-          label: localize("ActorChooser.Open", "Abrir HUD"),
-          callback: html => finish(actors.find(actor => actor.uuid === html.find('[name="actorUuid"]').val()) || null)
-        },
-        cancel: { label: localize("ActorChooser.Cancel", "Cancelar"), callback: () => finish(null) }
-      },
-      default: "open",
-      close: () => finish(null)
-    }).render(true);
-  });
-}
 
 async function persistHudActor(actor) {
   const uuid = actor && !actor.isToken ? actor.uuid : "";
@@ -135,14 +110,21 @@ async function openHud(source = null, { notify = true, choose = true, persist = 
   let tokenDocument = source?.document?.actor ? source.document : source?.actor ? source : null;
   let actor = tokenDocument?.actor || (source?.documentName === "Actor" ? source : null);
   if (!tokenDocument && actor?.isToken && actor.token) tokenDocument = actor.token;
+  let ambiguousActorChoice = false;
   if (!actor && !source) {
     const controlled = controlledOwnedToken();
     tokenDocument = controlled?.document || null;
     actor = tokenDocument?.actor || (ownsActor(game.user.character) ? game.user.character : null);
-    if (!actor && choose) actor = await chooseOwnedActor();
+    if (!actor && choose) {
+      const ownedActors = ownedWorldActors();
+      if (ownedActors.length === 1) actor = ownedActors[0];
+      else if (ownedActors.length > 1) ambiguousActorChoice = true;
+    }
   }
   if (!actor || !ownsActor(actor)) {
-    if (notify) ui.notifications.warn(localize("Permissions.OwnerRequired", "Você precisa ser proprietário do personagem para abrir seu HUD."));
+    if (notify) ui.notifications.warn(ambiguousActorChoice
+      ? localize("Permissions.OpenFromSheet", "Abra a ficha desejada e clique no ícone do GUM HUD.")
+      : localize("Permissions.OwnerRequired", "Você precisa ser proprietário do personagem para abrir seu HUD."));
     return false;
   }
   if (characterBrowser && characterBrowser.actorUuid !== actor.uuid) closeCharacterBrowser();

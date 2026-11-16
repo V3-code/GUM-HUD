@@ -132,7 +132,9 @@ test("HUD can follow owned token selection or remain pinned to a persistent acto
   assert.match(hud, /data-toggle-hud-binding/);
   assert.match(hud, /Hooks\.on\("controlToken"/);
   assert.match(hud, /game\.user\.character/);
-  assert.match(hud, /chooseOwnedActor/);
+  assert.match(hud, /ownedWorldActors/);
+  assert.doesNotMatch(hud, /chooseOwnedActor/);
+  assert.match(hud, /Permissions\.OpenFromSheet/);
   assert.match(hud, /actor && !actor\.isToken/);
   assert.match(css, /\.gum-hud-binding-trigger\.is-locked/);
   assert.equal(portuguese.GUMHUD.Identity.FollowSelection, "Seguindo o token selecionado");
