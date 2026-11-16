@@ -138,3 +138,13 @@ test("HUD can follow owned token selection or remain pinned to a persistent acto
   assert.equal(portuguese.GUMHUD.Identity.FollowSelection, "Seguindo o token selecionado");
   assert.equal(english.GUMHUD.Identity.FixedActor, "Character pinned to the HUD");
 });
+
+test("owned actor sheets expose a direct HUD header control which pins that actor", () => {
+  assert.match(hud, /Hooks\.on\("getActorSheetHeaderButtons"/);
+  assert.match(hud, /Hooks\.on\("getHeaderControlsActorSheetV2"/);
+  assert.match(hud, /openActorSheetHud/);
+  assert.match(hud, /game\.settings\.set\(MODULE, "followTokenSelection", false\)/);
+  assert.match(hud, /class: "gum-hud-open"/);
+  assert.equal(portuguese.GUMHUD.Header.Open, "Abrir no GUM HUD");
+  assert.equal(english.GUMHUD.Header.Open, "Open in GUM HUD");
+});

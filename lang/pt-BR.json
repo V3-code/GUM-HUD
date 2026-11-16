@@ -1,6 +1,7 @@
 {
   "GUMHUD": {
     "General": { "Close": "Fechar", "Expand": "Expandir", "Collapse": "Recolher", "ItemNotFound": "Item não encontrado" },
+    "Header": { "Open": "Abrir no GUM HUD" },
     "Categories": { "Skills": "Perícias", "Spells": "Magias", "Powers": "Poderes", "Skill": "Perícia" },
     "Combat": { "Title": "OPÇÕES DE COMBATE", "Empty": "Arraste equipamentos para os slots ou marque outras opções como favoritas.", "NoSkill": "Sem perícia", "UseMode": "Modo de uso", "Cost": "Custo", "FollowUpAbbrev": "Acomp.", "FragmentationAbbrev": "Frag." },
     "CombatOptions": { "Title": "Opções", "Count": "Opções de execução: {count}", "StrikeOptions": "Opções de execução", "Exclusive": "Exclusiva", "ExclusivePlural": "Exclusivas", "Cumulative": "Cumulativa", "CumulativePlural": "Cumulativas", "General": "Gerais", "Independent": "Independentes", "Combine": "Combináveis", "Effect": "Efeito", "Configure": "Configurar opções de execução", "Expand": "Expandir opções de execução", "Collapse": "Recolher opções de execução", "ShowMore": "+{count} opções", "ShowLess": "Mostrar menos" },

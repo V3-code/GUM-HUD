@@ -134,6 +134,7 @@ async function persistHudActor(actor) {
 async function openHud(source = null, { notify = true, choose = true, persist = true } = {}) {
   let tokenDocument = source?.document?.actor ? source.document : source?.actor ? source : null;
   let actor = tokenDocument?.actor || (source?.documentName === "Actor" ? source : null);
+  if (!tokenDocument && actor?.isToken && actor.token) tokenDocument = actor.token;
   if (!actor && !source) {
     const controlled = controlledOwnedToken();
     tokenDocument = controlled?.document || null;
@@ -150,6 +151,14 @@ async function openHud(source = null, { notify = true, choose = true, persist = 
   if (persist) await persistHudActor(hudActor);
   render();
   return true;
+}
+async function openActorSheetHud(actor) {
+  if (!ownsActor(actor)) {
+    ui.notifications.warn(localize("Permissions.OwnerRequired", "Você precisa ser proprietário do personagem para abrir seu HUD."));
+    return false;
+  }
+  if (game.settings.get(MODULE, "followTokenSelection")) await game.settings.set(MODULE, "followTokenSelection", false);
+  return openHud(actor, { choose: false });
 }
 async function closeHud({ persist = true } = {}) {
   pinnedToken = null;
@@ -1002,6 +1011,30 @@ Hooks.once("init", () => {
     icon: "fas fa-crosshairs", type: ExecutionOptionsConfig, restricted: true
   });
   game.keybindings.register(MODULE, "toggle", { name: "GUMHUD.Keybindings.Toggle", editable: [{ key: "KeyH", modifiers: ["CONTROL", "SHIFT"] }], onDown: () => { if (hudIsOpen()) void closeHud(); else void openHud(null); return true; } });
+});
+
+Hooks.on("getActorSheetHeaderButtons", (sheet, buttons) => {
+  const actor = sheet?.actor || sheet?.document;
+  if (!ownsActor(actor) || buttons.some(button => button.class === "gum-hud-open")) return;
+  buttons.unshift({
+    label: "",
+    class: "gum-hud-open",
+    icon: "fas fa-gauge-high",
+    tooltip: localize("Header.Open", "Abrir no GUM HUD"),
+    onclick: () => { void openActorSheetHud(actor); }
+  });
+});
+
+Hooks.on("getHeaderControlsActorSheetV2", (sheet, controls) => {
+  const actor = sheet?.actor || sheet?.document;
+  if (!ownsActor(actor) || controls.some(control => control.action === "gumHudOpen")) return;
+  controls.unshift({
+    action: "gumHudOpen",
+    icon: "fas fa-gauge-high",
+    label: "GUMHUD.Header.Open",
+    ownership: "OWNER",
+    onClick: () => { void openActorSheetHud(actor); }
+  });
 });
 
 const legacyEnabled = value => value === true || value === 1 || ["true", "1", "on"].includes(String(value ?? "").trim().toLocaleLowerCase());

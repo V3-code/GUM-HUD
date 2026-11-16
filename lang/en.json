@@ -1,6 +1,7 @@
 {
   "GUMHUD": {
     "General": { "Close": "Close", "Expand": "Expand", "Collapse": "Collapse", "ItemNotFound": "Item not found" },
+    "Header": { "Open": "Open in GUM HUD" },
     "Categories": { "Skills": "Skills", "Spells": "Spells", "Powers": "Powers", "Skill": "Skill" },
     "Combat": { "Title": "COMBAT OPTIONS", "Empty": "Drop equipment into the slots or mark other options as favorites.", "NoSkill": "No skill", "UseMode": "Use mode", "Cost": "Cost", "FollowUpAbbrev": "Follow-up", "FragmentationAbbrev": "Frag." },
     "CombatOptions": { "Title": "Options", "Count": "Execution options: {count}", "StrikeOptions": "Execution options", "Exclusive": "Exclusive", "ExclusivePlural": "Exclusive", "Cumulative": "Cumulative", "CumulativePlural": "Cumulative", "General": "General", "Independent": "Independent", "Combine": "Stackable", "Effect": "Effect", "Configure": "Configure execution options", "Expand": "Expand execution options", "Collapse": "Collapse execution options", "ShowMore": "+{count} options", "ShowLess": "Show less" },
