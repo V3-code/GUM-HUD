@@ -124,3 +124,17 @@ test("empty combat options use a full-width contextual message", () => {
   assert.match(css, /\.gum-hud-cards\.is-empty/);
   assert.match(css, /\.gum-hud-empty-state[^}]*text-align: justify/);
 });
+
+test("HUD can follow owned token selection or remain pinned to a persistent actor", () => {
+  assert.match(hud, /let hudActor = null/);
+  assert.match(hud, /const currentActor =/);
+  assert.match(hud, /followTokenSelection/);
+  assert.match(hud, /data-toggle-hud-binding/);
+  assert.match(hud, /Hooks\.on\("controlToken"/);
+  assert.match(hud, /game\.user\.character/);
+  assert.match(hud, /chooseOwnedActor/);
+  assert.match(hud, /actor && !actor\.isToken/);
+  assert.match(css, /\.gum-hud-binding-trigger\.is-locked/);
+  assert.equal(portuguese.GUMHUD.Identity.FollowSelection, "Seguindo o token selecionado");
+  assert.equal(english.GUMHUD.Identity.FixedActor, "Character pinned to the HUD");
+});

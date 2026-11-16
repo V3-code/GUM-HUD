@@ -17,6 +17,7 @@ import {
 
 const MODULE = "gum-hud";
 let pinnedToken = null;
+let hudActor = null;
 let openSelection = null;
 let selectionActorUuid = null;
 let selectedCombatOptions = new Set();
@@ -81,16 +82,83 @@ const api = () => game.gum?.api;
 const promptRoll = (actor, rollData) => api().rolls.fromHotbar({ actorUuid: actor.uuid, rollData });
 const currentToken = () => pinnedToken?.object && canvas?.scene?.id === pinnedToken.parent?.id ? pinnedToken.object : null;
 const ownsActor = actor => actor?.isOwner === true;
-function openHud(token, { notify = true } = {}) {
-  const document = token?.document || token || canvas?.tokens?.controlled?.[0]?.document || null;
-  if (!document?.actor || !ownsActor(document.actor)) {
+const hudIsOpen = () => Boolean(hudActor || pinnedToken);
+const controlledOwnedToken = () => {
+  const controlled = (canvas?.tokens?.controlled || []).filter(token => ownsActor(token.actor));
+  return controlled.length === 1 ? controlled[0] : null;
+};
+const currentActor = () => {
+  const token = currentToken();
+  if (token?.actor && ownsActor(token.actor)) return token.actor;
+  if (hudActor && !hudActor.isToken && ownsActor(hudActor)) return hudActor;
+  return null;
+};
+const effectTarget = (actor, token = null) => token || (actor && !actor.isToken ? {
+  actor,
+  id: null,
+  name: actor.name || localize("ActorChooser.Target", "Personagem"),
+  document: { uuid: null, texture: { src: actor.img || "icons/svg/mystery-man.svg" } }
+} : null);
+
+async function chooseOwnedActor() {
+  const actors = [...game.actors].filter(ownsActor).sort((a, b) => a.name.localeCompare(b.name, game.i18n.lang));
+  if (!actors.length) return null;
+  if (actors.length === 1) return actors[0];
+  if (typeof Dialog !== "function") return null;
+  const options = actors.map(actor => `<option value="${escape(actor.uuid)}">${escape(actor.name)}</option>`).join("");
+  return new Promise(resolve => {
+    let settled = false;
+    const finish = actor => { if (!settled) { settled = true; resolve(actor); } };
+    new Dialog({
+      title: localize("ActorChooser.Title", "Escolher personagem do HUD"),
+      content: `<form class="gum-hud-actor-chooser"><label>${localize("ActorChooser.Label", "Personagem")}<select name="actorUuid">${options}</select></label></form>`,
+      buttons: {
+        open: {
+          icon: '<i class="fas fa-user"></i>',
+          label: localize("ActorChooser.Open", "Abrir HUD"),
+          callback: html => finish(actors.find(actor => actor.uuid === html.find('[name="actorUuid"]').val()) || null)
+        },
+        cancel: { label: localize("ActorChooser.Cancel", "Cancelar"), callback: () => finish(null) }
+      },
+      default: "open",
+      close: () => finish(null)
+    }).render(true);
+  });
+}
+
+async function persistHudActor(actor) {
+  const uuid = actor && !actor.isToken ? actor.uuid : "";
+  if (game.settings.get(MODULE, "hudActorUuid") !== uuid) await game.settings.set(MODULE, "hudActorUuid", uuid);
+}
+
+async function openHud(source = null, { notify = true, choose = true, persist = true } = {}) {
+  let tokenDocument = source?.document?.actor ? source.document : source?.actor ? source : null;
+  let actor = tokenDocument?.actor || (source?.documentName === "Actor" ? source : null);
+  if (!actor && !source) {
+    const controlled = controlledOwnedToken();
+    tokenDocument = controlled?.document || null;
+    actor = tokenDocument?.actor || (ownsActor(game.user.character) ? game.user.character : null);
+    if (!actor && choose) actor = await chooseOwnedActor();
+  }
+  if (!actor || !ownsActor(actor)) {
     if (notify) ui.notifications.warn(localize("Permissions.OwnerRequired", "Você precisa ser proprietário do personagem para abrir seu HUD."));
     return false;
   }
-  if (characterBrowser && characterBrowser.actorUuid !== document.actor.uuid) closeCharacterBrowser();
-  pinnedToken = document;
+  if (characterBrowser && characterBrowser.actorUuid !== actor.uuid) closeCharacterBrowser();
+  pinnedToken = tokenDocument;
+  hudActor = actor.isToken ? actor : (game.actors.get(actor.id) || actor);
+  if (persist) await persistHudActor(hudActor);
   render();
   return true;
+}
+async function closeHud({ persist = true } = {}) {
+  pinnedToken = null;
+  hudActor = null;
+  preferencesOpen = false;
+  openSelection = null;
+  await closeCharacterBrowser();
+  if (persist && game.settings.get(MODULE, "hudActorUuid")) await game.settings.set(MODULE, "hudActorUuid", "");
+  render();
 }
 async function closeCharacterBrowser() {
   const browser = characterBrowser;
@@ -103,6 +171,7 @@ async function closeCharacterBrowser() {
 function retainHudOwnership(actor, { notify = true } = {}) {
   if (ownsActor(actor)) return true;
   pinnedToken = null;
+  hudActor = null;
   openSelection = null;
   if (notify) ui.notifications.warn(localize("Permissions.OwnerRequired", "Você precisa ser proprietário do personagem para abrir seu HUD."));
   render();
@@ -214,7 +283,7 @@ function executionOptionSelected(actor, option) {
   return option.binding.sourceType === "effect" ? effectOptionActive(actor, option) : selectedCombatOptions.has(option.binding.id);
 }
 
-async function toggleExecutionOption(actor, option, token) {
+async function toggleExecutionOption(actor, option, target) {
   if (!option) return;
   const selected = executionOptionSelected(actor, option);
   if (selected) {
@@ -238,7 +307,7 @@ async function toggleExecutionOption(actor, option, token) {
     }
     if (effectIds.length) await actor.deleteEmbeddedDocuments("ActiveEffect", [...new Set(effectIds)]);
   }
-  if (option.binding.sourceType === "effect") await api().effects.apply(option.binding.sourceUuid, [token], {
+  if (option.binding.sourceType === "effect") await api().effects.apply(option.binding.sourceUuid, [target], {
     actor,
     origin: actor,
     source: "GUM HUD",
@@ -595,22 +664,29 @@ function fitExpandedPanels(root) {
 function render() {
   document.getElementById("gum-hud-bar")?.remove();
   const token = currentToken();
-  if (token && !ownsActor(token.actor)) {
+  if ((token && !ownsActor(token.actor)) || (hudActor && !ownsActor(hudActor))) {
     pinnedToken = null;
+    hudActor = null;
     openSelection = null;
     combatOptionsPanelOpen = false;
   }
   const allowedToken = token && ownsActor(token.actor) ? token : null;
-  const hudAvailable = Boolean(allowedToken && api());
+  let actor = currentActor();
+  if (!actor && hudActor?.isToken) {
+    pinnedToken = null;
+    hudActor = null;
+    openSelection = null;
+  }
+  actor = currentActor();
+  const hudAvailable = Boolean(actor && api());
   const hideHotbar = game.settings.get(MODULE, "hideHotbar");
   const hotbarLayout = game.settings.get(MODULE, "hotbarLayout");
   document.body.classList.toggle("gum-hud-hide-hotbar", hudAvailable && hideHotbar);
   document.body.classList.toggle("gum-hud-compact-hotbar", hudAvailable && !hideHotbar && hotbarLayout !== "native");
   document.body.classList.toggle("gum-hud-hotbar-equipment", hudAvailable && !hideHotbar && hotbarLayout === "equipment");
   document.body.classList.toggle("gum-hud-hotbar-below", hudAvailable && !hideHotbar && hotbarLayout === "below");
-  if (!allowedToken || !api()) { closeCharacterBrowser(); return; }
+  if (!actor || !api()) { closeCharacterBrowser(); return; }
   const tokenForHud = allowedToken;
-  const actor = tokenForHud.actor;
   if (selectionActorUuid !== actor.uuid) {
     openSelection = null;
     preferencesOpen = false;
@@ -685,15 +761,20 @@ function render() {
     ["equipment", "fa-toolbox", localize("CharacterBrowser.Equipment", "Equipamentos"), 0],
     ["effect", "fa-sparkles", localize("CharacterBrowser.Effects", "Efeitos"), activeEffects.length]
   ].map(([category, icon, label, count]) => `<button type="button" data-character-browser="${category}" class="${characterBrowser?.actorUuid === actor.uuid && characterBrowser.category === category ? "is-active" : ""}" title="${escape(count ? `${label}: ${count}` : label)}"><i class="fas ${icon}" aria-hidden="true"></i>${count ? `<b>${count}</b>` : ""}</button>`).join("");
+  const followSelection = game.settings.get(MODULE, "followTokenSelection");
+  const bindingLabel = followSelection
+    ? localize("Identity.FollowSelection", "Seguindo o token selecionado")
+    : localize("Identity.FixedActor", "Personagem fixado no HUD");
+  const bindingControl = `<span class="gum-hud-resource-divider" aria-hidden="true"></span><button type="button" class="gum-hud-binding-trigger ${followSelection ? "is-following" : "is-locked"}" data-toggle-hud-binding aria-pressed="${!followSelection}" title="${escape(bindingLabel)}"><i class="fas ${followSelection ? "fa-lock-open" : "fa-lock"}" aria-hidden="true"></i></button>`;
   const showFoundryHotbar = !game.settings.get(MODULE, "hideHotbar");
   const hotbarLayouts = [
     ["equipment", "fa-table-cells", localize("Preferences.HotbarEquipment", "Acima dos equipamentos")],
     ["below", "fa-grip-lines", localize("Preferences.HotbarBelow", "Uma linha abaixo")],
     ["native", "fa-window-maximize", localize("Preferences.HotbarNative", "Padrão do Foundry")]
   ].map(([value, icon, label]) => `<button type="button" class="${hotbarLayout === value ? "is-selected" : ""}" data-hotbar-layout="${value}" aria-pressed="${hotbarLayout === value}" title="${escape(label)}"><i class="fas ${icon}" aria-hidden="true"></i><span>${escape(label)}</span></button>`).join("");
-  const preferences = `<span class="gum-hud-resource-divider" aria-hidden="true"></span><button type="button" class="gum-hud-preferences-trigger ${preferencesOpen ? "is-active" : ""}" data-hud-preferences aria-expanded="${preferencesOpen}" title="${escape(localize("Preferences.Open", "Configurar HUD"))}"><i class="fas fa-cog" aria-hidden="true"></i></button><aside class="gum-hud-preferences-panel ${preferencesOpen ? "is-open" : ""}" aria-label="${escape(localize("Preferences.Title", "Preferências do HUD"))}"><header><i class="fas fa-cog" aria-hidden="true"></i><span>${localize("Preferences.Title", "Preferências do HUD")}</span></header><button type="button" class="gum-hud-preference-toggle ${showFoundryHotbar ? "is-enabled" : ""}" data-toggle-foundry-hotbar aria-pressed="${showFoundryHotbar}"><span><strong>${localize("Preferences.FoundryHotbar", "Hotbar do Foundry")}</strong><small>${localize("Preferences.FoundryHotbarHint", "Exibir com o GUM HUD")}</small></span><i aria-hidden="true"><b></b></i></button><div class="gum-hud-hotbar-layout ${showFoundryHotbar ? "" : "is-disabled"}"><small>${localize("Preferences.HotbarPosition", "Posição")}</small><div>${hotbarLayouts}</div></div></aside>`;
+  const preferences = `<button type="button" class="gum-hud-preferences-trigger ${preferencesOpen ? "is-active" : ""}" data-hud-preferences aria-expanded="${preferencesOpen}" title="${escape(localize("Preferences.Open", "Configurar HUD"))}"><i class="fas fa-cog" aria-hidden="true"></i></button><aside class="gum-hud-preferences-panel ${preferencesOpen ? "is-open" : ""}" aria-label="${escape(localize("Preferences.Title", "Preferências do HUD"))}"><header><i class="fas fa-cog" aria-hidden="true"></i><span>${localize("Preferences.Title", "Preferências do HUD")}</span></header><button type="button" class="gum-hud-preference-toggle ${showFoundryHotbar ? "is-enabled" : ""}" data-toggle-foundry-hotbar aria-pressed="${showFoundryHotbar}"><span><strong>${localize("Preferences.FoundryHotbar", "Hotbar do Foundry")}</strong><small>${localize("Preferences.FoundryHotbarHint", "Exibir com o GUM HUD")}</small></span><i aria-hidden="true"><b></b></i></button><div class="gum-hud-hotbar-layout ${showFoundryHotbar ? "" : "is-disabled"}"><small>${localize("Preferences.HotbarPosition", "Posição")}</small><div>${hotbarLayouts}</div></div></aside>`;
   const identityVitals = `${identityResource(hp, "HP")}${identityResource(fp, "FP")}${identityMovement(actor)}`;
-  root.innerHTML = `<div class="gum-hud-region gum-hud-identity-region gum-hud-summary"><div class="gum-hud-loadout" aria-label="${escape(localize("Identity.QuickEquipment", "Equipamentos rápidos"))}">${equipmentSlots}</div><img src="${escape(tokenForHud.document.texture?.src || actor.img)}" alt=""><div class="gum-hud-summary-info"><strong>${escape(actor.name)}</strong><div class="gum-hud-vitals">${identityVitals}</div></div><button data-close title="${escape(localize("General.Close", "Fechar"))}">×</button></div><nav class="gum-hud-resource-rail" aria-label="${escape(localize("CharacterBrowser.Access", "Acesso rápido"))}">${resourceRail}${preferences}</nav><div class="gum-hud-region gum-hud-maneuver-region ${regionIsExpanded("maneuvers") ? "is-expanded" : ""}">${maneuverChrome(localize("Maneuvers.Title", "MANOBRAS"), maneuverExpandable, combatOptions, actor)}<div class="gum-hud-maneuvers">${maneuvers || `<small>${localize("Maneuvers.SelectGroup", "Selecione um grupo nas configurações.")}</small>`}</div><div class="gum-hud-maneuver-palette" hidden>${extraManeuvers}</div>${combatOptionsPanelMarkup(actor, combatOptions)}</div><div class="gum-hud-region gum-hud-combat ${regionIsExpanded("combat") ? "is-expanded" : ""}">${regionChrome(localize("Combat.Title", "OPÇÕES DE COMBATE"), "combat", combatExpandable)}<div class="gum-hud-cards ${itemCards ? "" : "is-empty"}">${itemCards || `<small class="gum-hud-empty-state">${localize("Combat.Empty", "Arraste equipamentos para os slots ou marque outras opções como favoritas.")}</small>`}</div><div class="gum-hud-expanded"></div></div><div class="gum-hud-region gum-hud-defense-region">${regionChrome(localize("Defense.Title", "DEFESAS ATIVAS"), "defenses", false)}<div class="gum-hud-defenses"></div><div class="gum-hud-expanded"></div></div>${consumableRegion}`;
+  root.innerHTML = `<div class="gum-hud-region gum-hud-identity-region gum-hud-summary"><div class="gum-hud-loadout" aria-label="${escape(localize("Identity.QuickEquipment", "Equipamentos rápidos"))}">${equipmentSlots}</div><img src="${escape(tokenForHud?.document.texture?.src || actor.img)}" alt=""><div class="gum-hud-summary-info"><strong>${escape(actor.name)}</strong><div class="gum-hud-vitals">${identityVitals}</div></div><button data-close title="${escape(localize("General.Close", "Fechar"))}">×</button></div><nav class="gum-hud-resource-rail" aria-label="${escape(localize("CharacterBrowser.Access", "Acesso rápido"))}">${resourceRail}${bindingControl}${preferences}</nav><div class="gum-hud-region gum-hud-maneuver-region ${regionIsExpanded("maneuvers") ? "is-expanded" : ""}">${maneuverChrome(localize("Maneuvers.Title", "MANOBRAS"), maneuverExpandable, combatOptions, actor)}<div class="gum-hud-maneuvers">${maneuvers || `<small>${localize("Maneuvers.SelectGroup", "Selecione um grupo nas configurações.")}</small>`}</div><div class="gum-hud-maneuver-palette" hidden>${extraManeuvers}</div>${combatOptionsPanelMarkup(actor, combatOptions)}</div><div class="gum-hud-region gum-hud-combat ${regionIsExpanded("combat") ? "is-expanded" : ""}">${regionChrome(localize("Combat.Title", "OPÇÕES DE COMBATE"), "combat", combatExpandable)}<div class="gum-hud-cards ${itemCards ? "" : "is-empty"}">${itemCards || `<small class="gum-hud-empty-state">${localize("Combat.Empty", "Arraste equipamentos para os slots ou marque outras opções como favoritas.")}</small>`}</div><div class="gum-hud-expanded"></div></div><div class="gum-hud-region gum-hud-defense-region">${regionChrome(localize("Defense.Title", "DEFESAS ATIVAS"), "defenses", false)}<div class="gum-hud-defenses"></div><div class="gum-hud-expanded"></div></div>${consumableRegion}`;
   if (openSelection?.kind === "defense" && !defenseEntries(actor, openSelection.key).length) openSelection = null;
   if (openSelection?.kind === "specialDefense" && !specialDefenses.length) openSelection = null;
   if (openSelection?.kind === "consumables" && !consumables.length) openSelection = null;
@@ -754,8 +835,18 @@ function render() {
     const button = event.target.closest("button");
     if (!button) return;
     try {
-      if (button.hasAttribute("data-close")) { pinnedToken = null; preferencesOpen = false; closeCharacterBrowser(); render(); return; }
+      if (button.hasAttribute("data-close")) { await closeHud(); return; }
       if (button.dataset.characterBrowser) { await requestCharacterBrowser(actor, button.dataset.characterBrowser); return; }
+      if (button.hasAttribute("data-toggle-hud-binding")) {
+        const follow = !game.settings.get(MODULE, "followTokenSelection");
+        await game.settings.set(MODULE, "followTokenSelection", follow);
+        if (follow) {
+          const controlled = controlledOwnedToken();
+          if (controlled) await openHud(controlled, { notify: false });
+          else render();
+        } else render();
+        return;
+      }
       if (button.hasAttribute("data-hud-preferences")) { preferencesOpen = !preferencesOpen; render(); return; }
       if (button.hasAttribute("data-toggle-foundry-hotbar")) { await game.settings.set(MODULE, "hideHotbar", !game.settings.get(MODULE, "hideHotbar")); return; }
       if (button.dataset.hotbarLayout) { await game.settings.set(MODULE, "hotbarLayout", button.dataset.hotbarLayout); return; }
@@ -791,7 +882,11 @@ function render() {
         if (optionsPanel) optionsPanel.classList.toggle("is-suspended", !palette.hidden);
         return;
       }
-      if (button.dataset.maneuver != null) { await api().effects.apply(group.effectUuids[Number(button.dataset.maneuver)], [tokenForHud], { actor, origin: actor, source: "GUM HUD" }); render(); return; }
+      if (button.dataset.maneuver != null) {
+        const target = effectTarget(actor, tokenForHud);
+        if (!target) throw new Error(localize("Permissions.TokenContextLost", "O contexto deste token não está mais disponível."));
+        await api().effects.apply(group.effectUuids[Number(button.dataset.maneuver)], [target], { actor, origin: actor, source: "GUM HUD" }); render(); return;
+      }
       if (button.dataset.defense === "dodge") { closeSelectionForRoll(); await promptRoll(actor, withExecutionOptions(actor, { type: "defense", defenseType: "dodge", value: actor.system.attributes.dodge.final, defenseBonusIncluded: true, label: localize("Defense.Dodge", "Esquiva") })); return; }
       if (button.dataset.expandDefense) {
         toggleSelection("defense", button.dataset.expandDefense);
@@ -830,7 +925,9 @@ function render() {
       }
       if (button.dataset.executionOption) {
         const option = executionOptionsFor(actor).find(candidate => candidate.binding.id === button.dataset.executionOption);
-        await toggleExecutionOption(actor, option, tokenForHud);
+        const target = effectTarget(actor, tokenForHud);
+        if (!target) throw new Error(localize("Permissions.TokenContextLost", "O contexto deste token não está mais disponível."));
+        await toggleExecutionOption(actor, option, target);
         render();
         return;
       }
@@ -889,20 +986,22 @@ function render() {
 }
 
 Hooks.once("init", () => {
-  game.settings.register(MODULE, "maneuverGroup", { name: "GUMHUD.Settings.ManeuverGroup.Name", hint: "GUMHUD.Settings.ManeuverGroup.Hint", scope: "world", config: true, type: String, default: "", onChange: async () => { await migrateLegacyCombatOptions(); if (pinnedToken) refreshManeuverNames(); } });
+  game.settings.register(MODULE, "maneuverGroup", { name: "GUMHUD.Settings.ManeuverGroup.Name", hint: "GUMHUD.Settings.ManeuverGroup.Hint", scope: "world", config: true, type: String, default: "", onChange: async () => { await migrateLegacyCombatOptions(); if (hudIsOpen()) refreshManeuverNames(); } });
   game.settings.register(MODULE, "hideHotbar", { name: "GUMHUD.Settings.HideHotbar.Name", hint: "GUMHUD.Settings.HideHotbar.Hint", scope: "client", config: true, type: Boolean, default: true, onChange: render });
   game.settings.register(MODULE, "hotbarLayout", { name: "GUMHUD.Settings.HotbarLayout.Name", hint: "GUMHUD.Settings.HotbarLayout.Hint", scope: "client", config: true, type: String, choices: { equipment: "GUMHUD.Preferences.HotbarEquipment", below: "GUMHUD.Preferences.HotbarBelow", native: "GUMHUD.Preferences.HotbarNative" }, default: "equipment", onChange: render });
+  game.settings.register(MODULE, "followTokenSelection", { name: "GUMHUD.Settings.FollowTokenSelection.Name", hint: "GUMHUD.Settings.FollowTokenSelection.Hint", scope: "client", config: false, type: Boolean, default: true });
+  game.settings.register(MODULE, "hudActorUuid", { name: "GUMHUD.Settings.HudActorUuid.Name", scope: "client", config: false, type: String, default: "" });
   game.settings.register(MODULE, "equipmentSlots", { name: "GUMHUD.Settings.EquipmentSlots.Name", scope: "client", config: false, type: Object, default: {} });
   game.settings.register(MODULE, "equipmentActivity", { name: "GUMHUD.Settings.EquipmentActivity.Name", scope: "client", config: false, type: Object, default: {} });
   game.settings.register(MODULE, "expandedRegions", { name: "GUMHUD.Settings.ExpandedRegions.Name", scope: "client", config: false, type: Object, default: { maneuvers: false, combat: false } });
   game.settings.register(MODULE, "characterBrowserState", { name: "GUMHUD.Settings.CharacterBrowserState.Name", scope: "client", config: false, type: Object, default: { category: "skill", equipmentFilter: "all" } });
-  game.settings.register(MODULE, EXECUTION_REGISTRY_SETTING, { scope: "world", config: false, type: Object, default: { version: 2, bindings: [] }, onChange: async () => { await hydrateExecutionSources(); if (pinnedToken) render(); } });
+  game.settings.register(MODULE, EXECUTION_REGISTRY_SETTING, { scope: "world", config: false, type: Object, default: { version: 2, bindings: [] }, onChange: async () => { await hydrateExecutionSources(); if (hudIsOpen()) render(); } });
   game.settings.register(MODULE, LEGACY_MIGRATION_SETTING, { scope: "world", config: false, type: Boolean, default: false });
   game.settings.registerMenu(MODULE, "executionOptions", {
     name: "GUMHUD.ExecutionConfig.MenuName", hint: "GUMHUD.ExecutionConfig.MenuHint", label: "GUMHUD.ExecutionConfig.MenuLabel",
     icon: "fas fa-crosshairs", type: ExecutionOptionsConfig, restricted: true
   });
-  game.keybindings.register(MODULE, "toggle", { name: "GUMHUD.Keybindings.Toggle", editable: [{ key: "KeyH", modifiers: ["CONTROL", "SHIFT"] }], onDown: () => { if (pinnedToken) { pinnedToken = null; preferencesOpen = false; closeCharacterBrowser(); render(); } else openHud(null); return true; } });
+  game.keybindings.register(MODULE, "toggle", { name: "GUMHUD.Keybindings.Toggle", editable: [{ key: "KeyH", modifiers: ["CONTROL", "SHIFT"] }], onDown: () => { if (hudIsOpen()) void closeHud(); else void openHud(null); return true; } });
 });
 
 const legacyEnabled = value => value === true || value === 1 || ["true", "1", "on"].includes(String(value ?? "").trim().toLocaleLowerCase());
@@ -962,19 +1061,25 @@ async function refreshManeuverNames() {
 
 Hooks.once("ready", async () => {
   game.gumHud = {
-    maneuverItems: new Map(), open: token => openHud(token), close: () => { pinnedToken = null; preferencesOpen = false; closeCharacterBrowser(); render(); },
+    maneuverItems: new Map(), open: source => openHud(source), close: () => closeHud(),
     configureExecutionOptions: options => { if (game.user.isGM) new ExecutionOptionsConfig(options).render(true); }
   };
   await migrateLegacyCombatOptions();
   await upgradeExecutionRegistryToWorldDefaults();
   await hydrateExecutionSources();
   await refreshManeuverNames();
+  const actorUuid = game.settings.get(MODULE, "hudActorUuid");
+  if (actorUuid) {
+    const actor = await fromUuid(actorUuid).catch(() => null);
+    if (actor?.documentName === "Actor" && !actor.isToken && ownsActor(actor)) await openHud(actor, { notify: false, choose: false, persist: false });
+    else await game.settings.set(MODULE, "hudActorUuid", "");
+  }
 });
 Hooks.on("gum.rollCompleted", context => {
   const usedIds = Array.isArray(context?.metadata?.rollData?.gumHudExecutionBindingIds)
     ? context.metadata.rollData.gumHudExecutionBindingIds
     : [];
-  if (!usedIds.length || !context?.actor || context.actor.uuid !== currentToken()?.actor?.uuid) return;
+  if (!usedIds.length || !context?.actor || context.actor.uuid !== currentActor()?.uuid) return;
   let changed = false;
   const registry = getExecutionRegistry();
   for (const bindingId of [...selectedCombatOptions]) {
@@ -984,8 +1089,8 @@ Hooks.on("gum.rollCompleted", context => {
   if (changed) render();
 });
 Hooks.on("updateActor", actor => {
-  const relevant = actor?.uuid === currentToken()?.actor?.uuid;
-  if (pinnedToken && relevant) render();
+  const relevant = actor?.uuid === currentActor()?.uuid;
+  if (hudIsOpen() && relevant) render();
   if (actor?.uuid === characterBrowser?.actorUuid) {
     if (!ownsActor(actor)) closeCharacterBrowser();
     else characterBrowser.render(false);
@@ -993,15 +1098,28 @@ Hooks.on("updateActor", actor => {
 });
 for (const hook of ["createActiveEffect", "deleteActiveEffect", "updateActiveEffect"]) Hooks.on(hook, effect => {
   const actorUuid = effect?.parent?.uuid;
-  if (pinnedToken && actorUuid === currentToken()?.actor?.uuid) render();
+  if (hudIsOpen() && actorUuid === currentActor()?.uuid) render();
   if (actorUuid === characterBrowser?.actorUuid) characterBrowser.render(false);
 });
-Hooks.on("canvasReady", () => { if (pinnedToken) render(); if (characterBrowser) characterBrowser.render(false); });
+Hooks.on("controlToken", () => {
+  if (!hudIsOpen() || !game.settings.get(MODULE, "followTokenSelection")) return;
+  queueMicrotask(() => {
+    const token = controlledOwnedToken();
+    if (token) void openHud(token, { notify: false, choose: false });
+  });
+});
+Hooks.on("canvasReady", () => {
+  const token = game.settings.get(MODULE, "followTokenSelection") ? controlledOwnedToken() : null;
+  if (hudIsOpen() && token) void openHud(token, { notify: false, choose: false });
+  else if (hudIsOpen()) render();
+  if (characterBrowser) characterBrowser.render(false);
+});
+Hooks.on("canvasTearDown", () => { if (hudIsOpen()) render(); });
 Hooks.on("renderHotbar", () => { const root = document.getElementById("gum-hud-bar"); if (root) requestAnimationFrame(() => fitToFoundry(root)); });
 for (const hook of ["createItem", "updateItem", "deleteItem"]) Hooks.on(hook, item => {
-  if (!pinnedToken) return;
+  if (!hudIsOpen()) return;
   const relevantSource = getExecutionRegistry().bindings.some(binding => binding.sourceUuid === item?.uuid);
-  if (item?.parent?.uuid === currentToken()?.actor?.uuid || relevantSource) render();
+  if (item?.parent?.uuid === currentActor()?.uuid || relevantSource) render();
   if (item?.parent?.uuid === characterBrowser?.actorUuid) characterBrowser.render(false);
 });
 window.addEventListener("resize", () => { const root = document.getElementById("gum-hud-bar"); if (root) fitToFoundry(root); });
