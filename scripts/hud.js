@@ -539,8 +539,21 @@ function fitToFoundry(root) {
   const available = Math.min(window.innerWidth - 16, (rightEdge.length ? Math.min(...rightEdge) : window.innerWidth) - 16);
   root.style.maxWidth = `${Math.max(320, available)}px`;
   const hotbar = document.querySelector("#hotbar");
-  const hotbarTop = hotbar?.getClientRects().length ? hotbar.getBoundingClientRect().top : window.innerHeight;
-  root.style.bottom = `${hotbarTop < window.innerHeight - 20 ? Math.max(12, window.innerHeight - hotbarTop + 8) : 12}px`;
+  const compactHotbar = document.body.classList.contains("gum-hud-compact-hotbar");
+  if (compactHotbar) {
+    root.style.bottom = "12px";
+    const loadout = root.querySelector(".gum-hud-loadout");
+    const loadoutRect = loadout?.getBoundingClientRect();
+    if (loadoutRect) {
+      document.body.style.setProperty("--gum-hud-hotbar-left", `${Math.max(8, Math.round(loadoutRect.left))}px`);
+      document.body.style.setProperty("--gum-hud-hotbar-bottom", `${Math.max(8, Math.round(window.innerHeight - loadoutRect.top + 5))}px`);
+    }
+  } else {
+    document.body.style.removeProperty("--gum-hud-hotbar-left");
+    document.body.style.removeProperty("--gum-hud-hotbar-bottom");
+    const hotbarTop = hotbar?.getClientRects().length ? hotbar.getBoundingClientRect().top : window.innerHeight;
+    root.style.bottom = `${hotbarTop < window.innerHeight - 20 ? Math.max(12, window.innerHeight - hotbarTop + 8) : 12}px`;
+  }
   fitExpandedPanels(root);
 }
 
@@ -566,7 +579,10 @@ function render() {
     combatOptionsPanelOpen = false;
   }
   const allowedToken = token && ownsActor(token.actor) ? token : null;
-  document.body.classList.toggle("gum-hud-hide-hotbar", Boolean(allowedToken && api() && game.settings.get(MODULE, "hideHotbar")));
+  const hudAvailable = Boolean(allowedToken && api());
+  const hideHotbar = game.settings.get(MODULE, "hideHotbar");
+  document.body.classList.toggle("gum-hud-hide-hotbar", hudAvailable && hideHotbar);
+  document.body.classList.toggle("gum-hud-compact-hotbar", hudAvailable && !hideHotbar && game.settings.get(MODULE, "compactHotbar"));
   if (!allowedToken || !api()) { closeCharacterBrowser(); return; }
   const tokenForHud = allowedToken;
   const actor = tokenForHud.actor;
@@ -645,7 +661,8 @@ function render() {
     ["effect", "fa-sparkles", localize("CharacterBrowser.Effects", "Efeitos"), activeEffects.length]
   ].map(([category, icon, label, count]) => `<button type="button" data-character-browser="${category}" class="${characterBrowser?.actorUuid === actor.uuid && characterBrowser.category === category ? "is-active" : ""}" title="${escape(count ? `${label}: ${count}` : label)}"><i class="fas ${icon}" aria-hidden="true"></i>${count ? `<b>${count}</b>` : ""}</button>`).join("");
   const showFoundryHotbar = !game.settings.get(MODULE, "hideHotbar");
-  const preferences = `<span class="gum-hud-resource-divider" aria-hidden="true"></span><button type="button" class="gum-hud-preferences-trigger ${preferencesOpen ? "is-active" : ""}" data-hud-preferences aria-expanded="${preferencesOpen}" title="${escape(localize("Preferences.Open", "Configurar HUD"))}"><i class="fas fa-cog" aria-hidden="true"></i></button><aside class="gum-hud-preferences-panel ${preferencesOpen ? "is-open" : ""}" aria-label="${escape(localize("Preferences.Title", "Preferências do HUD"))}"><header><i class="fas fa-cog" aria-hidden="true"></i><span>${localize("Preferences.Title", "Preferências do HUD")}</span></header><button type="button" class="gum-hud-preference-toggle ${showFoundryHotbar ? "is-enabled" : ""}" data-toggle-foundry-hotbar aria-pressed="${showFoundryHotbar}"><span><strong>${localize("Preferences.FoundryHotbar", "Hotbar do Foundry")}</strong><small>${localize("Preferences.FoundryHotbarHint", "Exibir abaixo do GUM HUD")}</small></span><i aria-hidden="true"><b></b></i></button></aside>`;
+  const compactHotbar = game.settings.get(MODULE, "compactHotbar");
+  const preferences = `<span class="gum-hud-resource-divider" aria-hidden="true"></span><button type="button" class="gum-hud-preferences-trigger ${preferencesOpen ? "is-active" : ""}" data-hud-preferences aria-expanded="${preferencesOpen}" title="${escape(localize("Preferences.Open", "Configurar HUD"))}"><i class="fas fa-cog" aria-hidden="true"></i></button><aside class="gum-hud-preferences-panel ${preferencesOpen ? "is-open" : ""}" aria-label="${escape(localize("Preferences.Title", "Preferências do HUD"))}"><header><i class="fas fa-cog" aria-hidden="true"></i><span>${localize("Preferences.Title", "Preferências do HUD")}</span></header><button type="button" class="gum-hud-preference-toggle ${showFoundryHotbar ? "is-enabled" : ""}" data-toggle-foundry-hotbar aria-pressed="${showFoundryHotbar}"><span><strong>${localize("Preferences.FoundryHotbar", "Hotbar do Foundry")}</strong><small>${localize("Preferences.FoundryHotbarHint", "Exibir com o GUM HUD")}</small></span><i aria-hidden="true"><b></b></i></button><button type="button" class="gum-hud-preference-toggle ${compactHotbar ? "is-enabled" : ""}" data-toggle-compact-hotbar aria-pressed="${compactHotbar}"><span><strong>${localize("Preferences.CompactHotbar", "Integrar ao HUD")}</strong><small>${localize("Preferences.CompactHotbarHint", "Atalhos compactos acima dos equipamentos")}</small></span><i aria-hidden="true"><b></b></i></button></aside>`;
   const identityVitals = `${identityResource(hp, "HP")}${identityResource(fp, "FP")}${identityMovement(actor)}`;
   root.innerHTML = `<div class="gum-hud-region gum-hud-identity-region gum-hud-summary"><div class="gum-hud-loadout" aria-label="${escape(localize("Identity.QuickEquipment", "Equipamentos rápidos"))}">${equipmentSlots}</div><img src="${escape(tokenForHud.document.texture?.src || actor.img)}" alt=""><div class="gum-hud-summary-info"><strong>${escape(actor.name)}</strong><div class="gum-hud-vitals">${identityVitals}</div></div><button data-close title="${escape(localize("General.Close", "Fechar"))}">×</button></div><nav class="gum-hud-resource-rail" aria-label="${escape(localize("CharacterBrowser.Access", "Acesso rápido"))}">${resourceRail}${preferences}</nav><div class="gum-hud-region gum-hud-maneuver-region ${regionIsExpanded("maneuvers") ? "is-expanded" : ""}">${maneuverChrome(localize("Maneuvers.Title", "MANOBRAS"), maneuverExpandable, combatOptions, actor)}<div class="gum-hud-maneuvers">${maneuvers || `<small>${localize("Maneuvers.SelectGroup", "Selecione um grupo nas configurações.")}</small>`}</div><div class="gum-hud-maneuver-palette" hidden>${extraManeuvers}</div>${combatOptionsPanelMarkup(actor, combatOptions)}</div><div class="gum-hud-region gum-hud-combat ${regionIsExpanded("combat") ? "is-expanded" : ""}">${regionChrome(localize("Combat.Title", "OPÇÕES DE COMBATE"), "combat", combatExpandable)}<div class="gum-hud-cards">${itemCards || `<small>${localize("Combat.Empty", "Arraste equipamentos para os slots ou marque outras opções como favoritas.")}</small>`}</div><div class="gum-hud-expanded"></div></div><div class="gum-hud-region gum-hud-defense-region">${regionChrome(localize("Defense.Title", "DEFESAS ATIVAS"), "defenses", false)}<div class="gum-hud-defenses"></div><div class="gum-hud-expanded"></div></div>${consumableRegion}`;
   if (openSelection?.kind === "defense" && !defenseEntries(actor, openSelection.key).length) openSelection = null;
@@ -712,6 +729,7 @@ function render() {
       if (button.dataset.characterBrowser) { await requestCharacterBrowser(actor, button.dataset.characterBrowser); return; }
       if (button.hasAttribute("data-hud-preferences")) { preferencesOpen = !preferencesOpen; render(); return; }
       if (button.hasAttribute("data-toggle-foundry-hotbar")) { await game.settings.set(MODULE, "hideHotbar", !game.settings.get(MODULE, "hideHotbar")); return; }
+      if (button.hasAttribute("data-toggle-compact-hotbar")) { await game.settings.set(MODULE, "compactHotbar", !game.settings.get(MODULE, "compactHotbar")); return; }
       if (button.dataset.toggleRegion) {
         const key = button.dataset.toggleRegion;
         const expanded = { ...game.settings.get(MODULE, "expandedRegions") };
@@ -844,6 +862,7 @@ function render() {
 Hooks.once("init", () => {
   game.settings.register(MODULE, "maneuverGroup", { name: "GUMHUD.Settings.ManeuverGroup.Name", hint: "GUMHUD.Settings.ManeuverGroup.Hint", scope: "world", config: true, type: String, default: "", onChange: async () => { await migrateLegacyCombatOptions(); if (pinnedToken) refreshManeuverNames(); } });
   game.settings.register(MODULE, "hideHotbar", { name: "GUMHUD.Settings.HideHotbar.Name", hint: "GUMHUD.Settings.HideHotbar.Hint", scope: "client", config: true, type: Boolean, default: true, onChange: render });
+  game.settings.register(MODULE, "compactHotbar", { name: "GUMHUD.Settings.CompactHotbar.Name", hint: "GUMHUD.Settings.CompactHotbar.Hint", scope: "client", config: true, type: Boolean, default: true, onChange: render });
   game.settings.register(MODULE, "equipmentSlots", { name: "GUMHUD.Settings.EquipmentSlots.Name", scope: "client", config: false, type: Object, default: {} });
   game.settings.register(MODULE, "equipmentActivity", { name: "GUMHUD.Settings.EquipmentActivity.Name", scope: "client", config: false, type: Object, default: {} });
   game.settings.register(MODULE, "expandedRegions", { name: "GUMHUD.Settings.ExpandedRegions.Name", scope: "client", config: false, type: Object, default: { maneuvers: false, combat: false } });
