@@ -1,0 +1,44 @@
+name: Validate Module Manifest
+
+on:
+  push:
+    tags:
+      - "v*"
+  pull_request:
+    paths:
+      - "module.json"
+      - "README.md"
+      - "CHANGELOG.md"
+      - ".github/workflows/validate.yml"
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate manifest and paths
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          data = json.loads(Path("module.json").read_text(encoding="utf-8"))
+          required = ["id", "title", "version", "compatibility", "relationships", "manifest", "download", "readme"]
+          missing = [key for key in required if key not in data]
+          if missing:
+              raise SystemExit(f"Missing required module.json fields: {missing}")
+
+          missing_paths = [path for key in ("esmodules", "styles") for path in data.get(key, []) if not Path(path).exists()]
+          if missing_paths:
+              raise SystemExit(f"Missing manifest paths: {missing_paths}")
+
+          ref = os.environ.get("GITHUB_REF_NAME", "")
+          if os.environ.get("GITHUB_REF_TYPE") == "tag" and ref != f"v{data['version']}":
+              raise SystemExit(f"Tag {ref!r} does not match v{data['version']}")
+          PY
+
+      - name: Run tests
+        run: node --test tests/*.test.mjs
