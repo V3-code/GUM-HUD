@@ -117,3 +117,10 @@ test("client HUD preferences can restore or dock the Foundry hotbar above the eq
   assert.match(css, /\.gum-hud-resource-divider/);
   assert.deepEqual(Object.keys(portuguese.GUMHUD.Preferences).sort(), Object.keys(english.GUMHUD.Preferences).sort());
 });
+
+test("empty combat options use a full-width contextual message", () => {
+  assert.match(hud, /gum-hud-cards \$\{itemCards \? "" : "is-empty"\}/);
+  assert.match(hud, /class="gum-hud-empty-state"/);
+  assert.match(css, /\.gum-hud-cards\.is-empty/);
+  assert.match(css, /\.gum-hud-empty-state[^}]*text-align: justify/);
+});

@@ -166,6 +166,8 @@ body.gum-hud-compact-hotbar #hotbar #hotbar-page-controls .hotbar-page-number { 
 #gum-hud-bar .gum-hud-combat-options-more { width: 100%; margin-top: 4px; padding: 3px 6px; border: 0; border-top: 1px solid rgba(var(--region-rgb), .24); border-radius: 0; background: transparent; color: rgba(var(--region-title-rgb), .82); font-size: 9px; }
 #gum-hud-bar .gum-hud-combat-options-more:hover, #gum-hud-bar .gum-hud-combat-options-more:focus-visible { background: rgba(var(--region-rgb), .1); color: rgb(var(--region-title-rgb)); outline: none; }
 .gum-hud-cards { display: grid; grid-template-columns: repeat(var(--combat-columns, 1), 70px); grid-auto-rows: 80px; gap: 5px; max-height: 80px; overflow: hidden; }
+.gum-hud-cards.is-empty { grid-template-columns: minmax(180px, 1fr); grid-auto-rows: auto; align-content: center; min-height: 80px; max-height: none; overflow: visible; }
+.gum-hud-empty-state { display: block; width: 100%; padding: 8px 10px; color: #a9a093; font-size: 9px; font-weight: 450; line-height: 1.45; text-align: justify; text-wrap: pretty; hyphens: auto; }
 .gum-hud-combat.is-expanded .gum-hud-cards { max-height: 165px; }
 #gum-hud-bar .gum-hud-card { display: flex; flex-direction: column; align-items: center; flex: 0 0 70px; height: 80px; gap: 3px; padding: 3px; }
 .gum-hud-card img { width: 58px; height: 55px; object-fit: cover; }
