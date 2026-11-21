@@ -2,7 +2,7 @@
   "id": "gum-hud",
   "title": "GUM HUD",
   "description": "HUD de combate compacto e contextual para o sistema GUM.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "authors": [{ "name": "Victor Valentim", "url": "https://github.com/V3-code" }],
   "compatibility": { "minimum": "13", "verified": "14" },
   "relationships": { "systems": [{ "id": "gum", "type": "system", "compatibility": { "minimum": "1.6.3-beta" } }] },
@@ -14,7 +14,7 @@
   "styles": ["styles/hud.css"],
   "url": "https://github.com/V3-code/GUM-HUD",
   "manifest": "https://raw.githubusercontent.com/V3-code/GUM-HUD/main/module.json",
-  "download": "https://github.com/V3-code/GUM-HUD/releases/download/v0.1.0/gum-hud.zip",
+  "download": "https://github.com/V3-code/GUM-HUD/releases/download/v0.2.0/gum-hud.zip",
   "readme": "https://raw.githubusercontent.com/V3-code/GUM-HUD/main/README.md",
   "changelog": "https://raw.githubusercontent.com/V3-code/GUM-HUD/main/CHANGELOG.md",
   "bugs": "https://github.com/V3-code/GUM-HUD/issues"

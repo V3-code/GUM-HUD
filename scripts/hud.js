@@ -4,6 +4,14 @@ import { buildEquipmentConsumptionUpdate, equipmentAvailableUses, resolveEquipme
 import { ExecutionOptionsConfig } from "./execution-config.js";
 import { CharacterResourceBrowser } from "./character-browser.js";
 import {
+  MANEUVER_APPLICATION_FLAG,
+  MANEUVER_TIMING_POLICIES,
+  MANEUVER_TIMING_SETTING,
+  evaluateManeuverTiming,
+  normalizeManeuverApplication,
+  sameManeuverSelection
+} from "./maneuver-state.js";
+import {
   EXECUTION_REGISTRY_SETTING,
   LEGACY_MIGRATION_SETTING,
   executionBindingsFor,
@@ -20,7 +28,9 @@ let pinnedToken = null;
 let hudActor = null;
 let openSelection = null;
 let selectionActorUuid = null;
-let selectedCombatOptions = new Set();
+const maneuverDrafts = new Map();
+const maneuverReconciliations = new Set();
+let maneuverOperationActorUuid = null;
 let combatOptionsPanelOpen = false;
 let combatOptionsPanelExpanded = false;
 let combatOptionsManeuverKey = "";
@@ -131,6 +141,7 @@ async function openHud(source = null, { notify = true, choose = true, persist = 
   pinnedToken = tokenDocument;
   hudActor = actor.isToken ? actor : (game.actors.get(actor.id) || actor);
   if (persist) await persistHudActor(hudActor);
+  await reconcileManeuverApplication(hudActor);
   render();
   return true;
 }
@@ -143,6 +154,8 @@ async function openActorSheetHud(actor) {
   return openHud(actor, { choose: false });
 }
 async function closeHud({ persist = true } = {}) {
+  const actor = currentActor();
+  if (actor) discardManeuverDraft(actor);
   pinnedToken = null;
   hudActor = null;
   preferencesOpen = false;
@@ -220,11 +233,59 @@ function activeManeuverUuids(actor) {
     .filter(uuid => uuid && configured.has(uuid)));
 }
 
-function executionOptionsFor(actor) {
-  const bindings = executionBindingsFor(getExecutionRegistry(), { actorUuid: actor.uuid, maneuverUuids: activeManeuverUuids(actor) });
+const activeManeuverUuid = actor => [...activeManeuverUuids(actor)][0] || null;
+const maneuverApplicationFor = actor => normalizeManeuverApplication(actor.getFlag?.(MODULE, MANEUVER_APPLICATION_FLAG) ?? actor.flags?.[MODULE]?.[MANEUVER_APPLICATION_FLAG]);
+
+function executionOptionsFor(actor, maneuverUuids = activeManeuverUuids(actor)) {
+  const bindings = executionBindingsFor(getExecutionRegistry(), { actorUuid: actor.uuid, maneuverUuids });
   return bindings.map(binding => ({ binding, item: resolveExecutionSource(binding, actor) }))
     .filter(option => option.item && (option.binding.sourceType === "effect" ? option.item.type === "effect" : option.item.type === "gm_modifier"))
     .sort((a, b) => a.binding.order - b.binding.order || a.item.name.localeCompare(b.item.name, game.i18n.lang));
+}
+
+function applicationEffectIds(actor, applicationId) {
+  if (!applicationId) return [];
+  return [...actor.effects]
+    .filter(effect => effect.flags?.gum?.gumHudApplicationId === applicationId)
+    .map(effect => effect.id)
+    .filter(Boolean);
+}
+
+function committedManeuverSelection(actor) {
+  const maneuverUuid = activeManeuverUuid(actor);
+  const application = maneuverApplicationFor(actor);
+  if (!maneuverUuid) return { maneuverUuid: null, optionBindingIds: [], application };
+  const options = executionOptionsFor(actor, [maneuverUuid]);
+  const optionBindingIds = application?.maneuverUuid === maneuverUuid
+    ? application.optionBindingIds.filter(id => {
+      const option = options.find(candidate => candidate.binding.id === id);
+      if (!option) return false;
+      if (option.binding.sourceType === "modifier") return true;
+      return [...actor.effects].some(effect => effect.flags?.gum?.gumHudApplicationId === application.id && effect.flags?.gum?.gumHudBindingId === id);
+    })
+    : options.filter(option => option.binding.sourceType === "effect" && effectOptionActive(actor, option)).map(option => option.binding.id);
+  return { maneuverUuid, optionBindingIds, application };
+}
+
+function maneuverDraftFor(actor) {
+  return maneuverDrafts.get(actor.uuid) || null;
+}
+
+function beginManeuverDraft(actor, maneuverUuid = committedManeuverSelection(actor).maneuverUuid) {
+  const committed = committedManeuverSelection(actor);
+  const keepOptions = maneuverUuid && maneuverUuid === committed.maneuverUuid ? committed.optionBindingIds : [];
+  const draft = { maneuverUuid: maneuverUuid || null, optionBindingIds: new Set(keepOptions) };
+  maneuverDrafts.set(actor.uuid, draft);
+  return draft;
+}
+
+function discardManeuverDraft(actor) {
+  maneuverDrafts.delete(actor.uuid);
+  combatOptionsPanelExpanded = false;
+}
+
+function draftSelectionValue(draft) {
+  return draft ? { maneuverUuid: draft.maneuverUuid, optionBindingIds: [...draft.optionBindingIds] } : null;
 }
 
 function portableModifierData(option) {
@@ -270,52 +331,215 @@ function effectOptionActive(actor, option) {
   return option.binding.sourceType === "effect" && [...actor.effects].some(effect => effect.flags?.gum?.effectUuid === option.binding.sourceUuid);
 }
 
-function executionOptionSelected(actor, option) {
-  return option.binding.sourceType === "effect" ? effectOptionActive(actor, option) : selectedCombatOptions.has(option.binding.id);
-}
-
-async function toggleExecutionOption(actor, option, target) {
+function toggleExecutionOption(actor, option) {
   if (!option) return;
-  const selected = executionOptionSelected(actor, option);
+  const draft = maneuverDraftFor(actor) || beginManeuverDraft(actor);
+  const available = executionOptionsFor(actor, draft.maneuverUuid ? [draft.maneuverUuid] : []);
+  if (!available.some(candidate => candidate.binding.id === option.binding.id)) return;
+  const selected = draft.optionBindingIds.has(option.binding.id);
   if (selected) {
-    if (option.binding.sourceType === "effect") {
-      const activeIds = [...actor.effects].filter(effect => effect.flags?.gum?.effectUuid === option.binding.sourceUuid).map(effect => effect.id);
-      if (activeIds.length) await actor.deleteEmbeddedDocuments("ActiveEffect", activeIds);
-    } else selectedCombatOptions.delete(option.binding.id);
+    draft.optionBindingIds.delete(option.binding.id);
     return;
   }
   const behavior = executionOptionBehavior(option);
   const group = behavior.group || option.binding.id;
   if (behavior.mode === "exclusive") {
-    const available = executionOptionsFor(actor);
-    const effectIds = [];
     for (const peer of available) {
-      if (peer.binding.id === option.binding.id || !executionOptionSelected(actor, peer)) continue;
+      if (peer.binding.id === option.binding.id || !draft.optionBindingIds.has(peer.binding.id)) continue;
       const peerBehavior = executionOptionBehavior(peer);
       if ((peerBehavior.group || peer.binding.id) !== group) continue;
-      if (peer.binding.sourceType === "modifier") selectedCombatOptions.delete(peer.binding.id);
-      else effectIds.push(...[...actor.effects].filter(effect => effect.flags?.gum?.effectUuid === peer.binding.sourceUuid).map(effect => effect.id));
+      draft.optionBindingIds.delete(peer.binding.id);
     }
-    if (effectIds.length) await actor.deleteEmbeddedDocuments("ActiveEffect", [...new Set(effectIds)]);
   }
-  if (option.binding.sourceType === "effect") await api().effects.apply(option.binding.sourceUuid, [target], {
-    actor,
-    origin: actor,
-    source: "GUM HUD",
-    tokenIconPolicyOverride: "always"
-  });
-  else selectedCombatOptions.add(option.binding.id);
+  draft.optionBindingIds.add(option.binding.id);
 }
 
 const withExecutionOptions = (actor, rollData) => {
+  const selectedIds = new Set(committedManeuverSelection(actor).optionBindingIds);
   const selected = executionOptionsFor(actor)
-    .filter(option => option.binding.sourceType === "modifier" && selectedCombatOptions.has(option.binding.id));
+    .filter(option => option.binding.sourceType === "modifier" && selectedIds.has(option.binding.id));
   return {
     ...rollData,
     preselectedModifierData: selected.map(portableModifierData),
     gumHudExecutionBindingIds: selected.map(option => option.binding.id)
   };
 };
+
+function maneuverCombatantContext(actor, token = null) {
+  const combat = game.combat;
+  const combatants = combat?.combatants?.contents || [...(combat?.combatants?.values?.() || [])];
+  let matches = [];
+  const tokenId = token?.document?.id || token?.id || null;
+  if (tokenId) matches = combatants.filter(combatant => (combatant.tokenId || combatant.token?.id) === tokenId);
+  else matches = combatants.filter(combatant => combatant.actor?.uuid === actor.uuid || combatant.actorId === actor.id);
+  return {
+    combat,
+    combatant: matches.length === 1 ? matches[0] : null,
+    ambiguous: matches.length > 1
+  };
+}
+
+function maneuverTimingStatus(actor, token = null) {
+  const { combat, combatant, ambiguous } = maneuverCombatantContext(actor, token);
+  const result = evaluateManeuverTiming({
+    policy: game.settings.get(MODULE, MANEUVER_TIMING_SETTING),
+    isGM: game.user.isGM,
+    combatStarted: Boolean(combat?.started || Number(combat?.round) > 0),
+    combatantFound: Boolean(combatant),
+    combatantAmbiguous: ambiguous,
+    isCurrentTurn: Boolean(combatant && combat?.combatant?.id === combatant.id)
+  });
+  const messages = {
+    combatRequired: localize("Maneuvers.RestrictedCombat", "Manobras só podem ser aplicadas durante um combate."),
+    combatantRequired: localize("Maneuvers.RestrictedCombatant", "Este personagem não participa do combate atual."),
+    combatantAmbiguous: localize("Maneuvers.RestrictedAmbiguous", "Selecione o token correto deste personagem no combate."),
+    turnRequired: localize("Maneuvers.RestrictedTurn", "A manobra só pode ser alterada no turno deste personagem.")
+  };
+  return { ...result, message: messages[result.reason] || null };
+}
+
+async function retagHudEffect(effect, { applicationId, role, bindingId = null }) {
+  await effect.update({
+    "flags.gum.gumHudApplicationId": applicationId,
+    "flags.gum.gumHudRole": role,
+    "flags.gum.gumHudBindingId": bindingId
+  });
+}
+
+async function applyPreparedManeuver(actor, target, token = null) {
+  const draft = maneuverDraftFor(actor);
+  if (!draft?.maneuverUuid) throw new Error(localize("Maneuvers.SelectBeforeApply", "Selecione uma manobra antes de aplicar."));
+  if (!(selectedGroup()?.effectUuids || []).includes(draft.maneuverUuid)) throw new Error(localize("Maneuvers.SelectionUnavailable", "A manobra preparada não está mais disponível."));
+  const timing = maneuverTimingStatus(actor, token);
+  if (!timing.allowed) throw new Error(timing.message);
+  if (maneuverOperationActorUuid) return;
+
+  const prepared = { maneuverUuid: draft.maneuverUuid, optionBindingIds: new Set(draft.optionBindingIds) };
+  const options = executionOptionsFor(actor, [prepared.maneuverUuid]);
+  const selectedOptions = options.filter(option => prepared.optionBindingIds.has(option.binding.id));
+  if (selectedOptions.length !== prepared.optionBindingIds.size) throw new Error(localize("Maneuvers.OptionsChanged", "As opções da manobra mudaram. Revise a preparação e tente novamente."));
+  const previous = maneuverApplicationFor(actor);
+  const previousEffectSnapshots = previous
+    ? [...actor.effects].filter(effect => effect.flags?.gum?.gumHudApplicationId === previous.id).map(effect => effect.toObject())
+    : [];
+  const applicationId = foundry.utils.randomID();
+  const retagged = [];
+  maneuverOperationActorUuid = actor.uuid;
+  try {
+    render();
+    const previousManeuver = previous?.maneuverUuid === prepared.maneuverUuid
+      ? [...actor.effects].find(effect => effect.flags?.gum?.gumHudApplicationId === previous.id && effect.flags?.gum?.gumHudRole === "maneuver")
+      : null;
+    if (previousManeuver) {
+      retagged.push({ effect: previousManeuver, applicationId: previous.id });
+      await retagHudEffect(previousManeuver, { applicationId, role: "maneuver" });
+    } else {
+      await api().effects.apply(prepared.maneuverUuid, [target], {
+        actor, origin: actor, source: "GUM HUD",
+        gumFlags: { gumHudApplicationId: applicationId, gumHudRole: "maneuver", gumHudBindingId: null }
+      });
+    }
+
+    for (const option of selectedOptions.filter(entry => entry.binding.sourceType === "effect")) {
+      const retained = previous?.optionBindingIds.includes(option.binding.id)
+        ? [...actor.effects].find(effect => effect.flags?.gum?.gumHudApplicationId === previous.id && effect.flags?.gum?.gumHudBindingId === option.binding.id)
+        : null;
+      if (retained) {
+        retagged.push({ effect: retained, applicationId: previous.id });
+        await retagHudEffect(retained, { applicationId, role: "option", bindingId: option.binding.id });
+      } else {
+        await api().effects.apply(option.binding.sourceUuid, [target], {
+          actor, origin: actor, source: "GUM HUD", tokenIconPolicyOverride: "always",
+          gumFlags: { gumHudApplicationId: applicationId, gumHudRole: "option", gumHudBindingId: option.binding.id }
+        });
+      }
+    }
+
+    const obsoleteIds = applicationEffectIds(actor, previous?.id);
+    if (obsoleteIds.length) await actor.deleteEmbeddedDocuments("ActiveEffect", obsoleteIds);
+    await actor.setFlag(MODULE, MANEUVER_APPLICATION_FLAG, {
+      version: 1,
+      id: applicationId,
+      maneuverUuid: prepared.maneuverUuid,
+      optionBindingIds: selectedOptions.map(option => option.binding.id),
+      userId: game.user.id,
+      appliedAt: Date.now()
+    });
+    discardManeuverDraft(actor);
+    combatOptionsPanelOpen = selectedOptions.length > 0;
+  } catch (error) {
+    const retainedIds = new Set(retagged.map(entry => entry.effect.id));
+    const createdIds = applicationEffectIds(actor, applicationId).filter(id => !retainedIds.has(id));
+    if (createdIds.length) await actor.deleteEmbeddedDocuments("ActiveEffect", createdIds).catch(() => undefined);
+    for (const retained of retagged) {
+      if (retained.effect.parent) await retained.effect.update({ "flags.gum.gumHudApplicationId": retained.applicationId }).catch(() => undefined);
+    }
+    const restoredKeys = new Set([...actor.effects]
+      .filter(effect => effect.flags?.gum?.gumHudApplicationId === previous?.id)
+      .map(effect => `${effect.flags?.gum?.gumHudRole || ""}\u0000${effect.flags?.gum?.gumHudBindingId || ""}\u0000${effect.flags?.gum?.effectUuid || ""}`));
+    const missingPrevious = previousEffectSnapshots.filter(data => {
+      const gum = data.flags?.gum || {};
+      return !restoredKeys.has(`${gum.gumHudRole || ""}\u0000${gum.gumHudBindingId || ""}\u0000${gum.effectUuid || ""}`);
+    }).map(data => {
+      const clone = foundry.utils.deepClone(data);
+      delete clone._id;
+      return clone;
+    });
+    if (missingPrevious.length) await actor.createEmbeddedDocuments("ActiveEffect", missingPrevious).catch(() => undefined);
+    throw error;
+  } finally {
+    maneuverOperationActorUuid = null;
+    render();
+  }
+}
+
+async function removeManeuverApplication(actor, token = null) {
+  const timing = maneuverTimingStatus(actor, token);
+  if (!timing.allowed) throw new Error(timing.message);
+  if (maneuverOperationActorUuid) return;
+  maneuverOperationActorUuid = actor.uuid;
+  try {
+    render();
+    const application = maneuverApplicationFor(actor);
+    let effectIds = applicationEffectIds(actor, application?.id);
+    if (!application) {
+      const maneuvers = activeManeuverUuids(actor);
+      effectIds = [...actor.effects]
+        .filter(effect => maneuvers.has(effect.flags?.gum?.effectUuid) && effect.flags?.gum?.stackingDomain === "direct")
+        .map(effect => effect.id)
+        .filter(Boolean);
+    }
+    if (effectIds.length) await actor.deleteEmbeddedDocuments("ActiveEffect", [...new Set(effectIds)]);
+    if (application) await actor.unsetFlag(MODULE, MANEUVER_APPLICATION_FLAG);
+    discardManeuverDraft(actor);
+    combatOptionsPanelOpen = false;
+  } finally {
+    maneuverOperationActorUuid = null;
+    render();
+  }
+}
+
+async function reconcileManeuverApplication(actor) {
+  if (!actor || maneuverOperationActorUuid === actor.uuid || maneuverReconciliations.has(actor.uuid)) return;
+  const application = maneuverApplicationFor(actor);
+  if (!application) return;
+  const hasOwnedManeuver = [...actor.effects].some(effect =>
+    effect.flags?.gum?.gumHudApplicationId === application.id
+    && effect.flags?.gum?.gumHudRole === "maneuver"
+    && effect.flags?.gum?.effectUuid === application.maneuverUuid
+  );
+  if (hasOwnedManeuver) return;
+  maneuverReconciliations.add(actor.uuid);
+  try {
+    const orphanIds = applicationEffectIds(actor, application.id);
+    if (orphanIds.length) await actor.deleteEmbeddedDocuments("ActiveEffect", orphanIds);
+    await actor.unsetFlag(MODULE, MANEUVER_APPLICATION_FLAG);
+  } catch (error) {
+    console.error("GUM HUD | Reconciling maneuver application", error);
+  } finally {
+    maneuverReconciliations.delete(actor.uuid);
+  }
+}
 
 function specialDefenseEntries(actor) {
   return favorites(actor)
@@ -545,10 +769,11 @@ function regionChrome(label, key, expandable) {
   return `<header><button type="button" class="gum-hud-region-toggle" data-toggle-region="${key}" aria-expanded="${expanded}" title="${escape(action)} ${escape(label.toLocaleLowerCase())}"><span>${label}</span><i class="fas fa-caret-${expanded ? "down" : "up"}" aria-hidden="true"></i></button></header>`;
 }
 
-function maneuverChrome(label, expandable, options, actor) {
+function maneuverChrome(label, expandable, options, actor, { draft, committed, timing, busy }) {
   const expanded = regionIsExpanded("maneuvers");
   const optionCount = options.length;
-  const selectedCount = options.filter(option => executionOptionSelected(actor, option)).length;
+  const selectedIds = new Set(draft ? draft.optionBindingIds : committed.optionBindingIds);
+  const selectedCount = options.filter(option => selectedIds.has(option.binding.id)).length;
   const regionAction = expanded ? localize("General.Collapse", "Recolher") : localize("General.Expand", "Expandir");
   const regionControl = expandable
     ? `<button type="button" class="gum-hud-region-toggle" data-toggle-region="maneuvers" aria-expanded="${expanded}" title="${escape(regionAction)} ${escape(label.toLocaleLowerCase())}"><span>${label}</span><i class="fas fa-caret-${expanded ? "down" : "up"}" aria-hidden="true"></i></button>`
@@ -559,14 +784,35 @@ function maneuverChrome(label, expandable, options, actor) {
   const configControl = game.user.isGM
     ? `<button type="button" class="gum-hud-execution-config-button" data-config-execution title="${escape(localize("CombatOptions.Configure", "Configurar opções de execução"))}"><i class="fas fa-cog" aria-hidden="true"></i></button>`
     : "";
-  return `<header class="gum-hud-maneuver-footer"><div>${regionControl}${optionsControl}${configControl}</div></header>`;
+  const draftValue = draftSelectionValue(draft);
+  const dirty = Boolean(draft && !sameManeuverSelection(draftValue, committed));
+  const timingTitle = timing.allowed ? "" : timing.message;
+  const status = draft
+    ? (dirty ? localize("Maneuvers.UnappliedChanges", "Alterações não aplicadas") : localize("Maneuvers.Prepared", "Preparando"))
+    : committed.maneuverUuid ? localize("Maneuvers.Applied", "Aplicada") : "";
+  const statusControl = status
+    ? `<span class="gum-hud-maneuver-status ${draft ? "is-draft" : "is-applied"}" title="${escape(status)}" aria-label="${escape(status)}"><i class="fas ${draft ? "fa-pen-to-square" : "fa-check"}" aria-hidden="true"></i></span>`
+    : "";
+  const cancelLabel = committed.maneuverUuid
+    ? localize("Maneuvers.Cancel", "Cancelar")
+    : localize("Maneuvers.ClearSelection", "Limpar seleção");
+  const actions = draft
+    ? `<button type="button" data-cancel-maneuver-draft ${busy ? "disabled" : ""} title="${escape(localize("Maneuvers.CancelPreparation", "Descartar preparação"))}"><i class="fas fa-xmark" aria-hidden="true"></i><span>${cancelLabel}</span></button><button type="button" class="is-primary" data-apply-maneuver ${busy || !draft.maneuverUuid || !dirty || !timing.allowed ? "disabled" : ""} title="${escape(timingTitle || localize("Maneuvers.ApplyPrepared", "Aplicar a manobra e suas opções"))}"><i class="fas ${busy ? "fa-spinner fa-spin" : "fa-check"}" aria-hidden="true"></i><span>${localize("Maneuvers.Apply", "Aplicar")}</span></button>`
+    : committed.maneuverUuid
+      ? `<button type="button" data-edit-maneuver ${busy ? "disabled" : ""} title="${escape(localize("Maneuvers.EditApplied", "Preparar alterações na aplicação atual"))}"><i class="fas fa-pen" aria-hidden="true"></i><span>${localize("Maneuvers.Edit", "Alterar")}</span></button><button type="button" class="is-danger" data-remove-maneuver ${busy || !timing.allowed ? "disabled" : ""} title="${escape(timingTitle || localize("Maneuvers.RemoveApplied", "Desfazer esta aplicação do HUD"))}"><i class="fas ${busy ? "fa-spinner fa-spin" : "fa-trash-can"}" aria-hidden="true"></i><span>${localize("Maneuvers.Remove", "Remover")}</span></button>`
+      : "";
+  return `<header class="gum-hud-maneuver-footer">${actions ? `<div class="gum-hud-maneuver-actions ${draft ? "is-draft" : "is-applied"}">${actions}</div>` : ""}<div class="gum-hud-maneuver-controls">${regionControl}${statusControl}${optionsControl}${configControl}</div></header>`;
 }
 
-function combatOptionsPanelMarkup(actor, options) {
+function combatOptionsPanelMarkup(actor, options, draft = maneuverDraftFor(actor), committed = committedManeuverSelection(actor), busy = false) {
   if (!options.length) return "";
+  const selectedIds = new Set(draft ? draft.optionBindingIds : committed.optionBindingIds);
+  const maneuverUuid = draft ? draft.maneuverUuid : committed.maneuverUuid;
+  const maneuverName = game.gumHud.maneuverItems.get(maneuverUuid)?.name || localize("Maneuvers.Title", "Manobras");
+  const heading = draft ? localize("CombatOptions.PreparedOptions", "Opções preparadas") : localize("CombatOptions.StrikeOptions", "Opções de execução");
   const groups = new Map();
   options.forEach((option, index) => {
-    const selected = executionOptionSelected(actor, option);
+    const selected = selectedIds.has(option.binding.id);
     const behavior = executionOptionBehavior(option);
     const cumulative = behavior.mode === "cumulative";
     const mode = cumulative ? localize("CombatOptions.Cumulative", "Cumulativa") : localize("CombatOptions.Exclusive", "Exclusiva");
@@ -579,14 +825,14 @@ function combatOptionsPanelMarkup(actor, options) {
     if (!groups.has(key)) groups.set(key, { label, qualifier, cumulative, firstIndex: index, cards: [] });
     const value = option.binding.sourceType === "effect" ? localize("CombatOptions.Effect", "Efeito") : modifierOptionValue(option.item);
     const preview = `data-preview-uuid="${escape(option.binding.sourceUuid)}"`;
-    groups.get(key).cards.push(`<button type="button" class="gum-hud-combat-option-mini ${option.binding.sourceType === "effect" ? "is-effect" : "is-modifier"} ${selected ? "is-selected" : ""} ${index >= 4 ? "is-overflow" : ""}" data-execution-option="${escape(option.binding.id)}" ${preview} aria-pressed="${selected}" title="${escape(option.item.name)} · ${escape(mode)} · ${escape(value)}"><span><img src="${escape(option.item.img)}" alt=""><small>${escape(value)}</small></span><strong>${escape(option.item.name)}</strong></button>`);
+    groups.get(key).cards.push(`<button type="button" class="gum-hud-combat-option-mini ${option.binding.sourceType === "effect" ? "is-effect" : "is-modifier"} ${selected ? "is-selected" : ""} ${index >= 4 ? "is-overflow" : ""}" data-execution-option="${escape(option.binding.id)}" ${preview} aria-pressed="${selected}" ${busy ? "disabled" : ""} title="${escape(option.item.name)} · ${escape(mode)} · ${escape(value)}"><span><img src="${escape(option.item.img)}" alt=""><small>${escape(value)}</small></span><strong>${escape(option.item.name)}</strong></button>`);
   });
   const sections = [...groups.values()].map(group => `<section class="gum-hud-combat-option-group ${group.cumulative ? "is-cumulative" : "is-exclusive"} ${group.firstIndex >= 4 ? "is-overflow" : ""}"><div class="gum-hud-combat-option-group-label"><span>${escape(group.label)}</span><small>${escape(group.qualifier)}</small></div><div class="gum-hud-combat-options-grid">${group.cards.join("")}</div></section>`).join("");
   const hiddenCount = Math.max(0, options.length - 4);
   const more = hiddenCount
     ? `<button type="button" class="gum-hud-combat-options-more" data-expand-combat-options aria-expanded="${combatOptionsPanelExpanded}">${combatOptionsPanelExpanded ? localize("CombatOptions.ShowLess", "Mostrar menos") : format("CombatOptions.ShowMore", { count: hiddenCount }, `+${hiddenCount} opções`)}</button>`
     : "";
-  return `<aside class="gum-hud-combat-options-panel ${combatOptionsPanelOpen ? "is-open" : ""} ${combatOptionsPanelExpanded ? "is-expanded" : ""}" aria-label="${escape(localize("CombatOptions.StrikeOptions", "Opções de execução"))}"><div class="gum-hud-combat-options-heading"><i class="fas fa-crosshairs" aria-hidden="true"></i><span>${localize("CombatOptions.StrikeOptions", "Opções de execução")}</span></div><div class="gum-hud-combat-option-groups">${sections}</div>${more}</aside>`;
+  return `<aside class="gum-hud-combat-options-panel ${combatOptionsPanelOpen ? "is-open" : ""} ${combatOptionsPanelExpanded ? "is-expanded" : ""}" aria-label="${escape(heading)}"><div class="gum-hud-combat-options-heading"><i class="fas fa-crosshairs" aria-hidden="true"></i><span><strong>${escape(heading)}</strong><small>${escape(maneuverName)}</small></span><b>${selectedIds.size}/${options.length}</b></div><div class="gum-hud-combat-option-groups">${sections}</div>${more}</aside>`;
 }
 
 function anchorHotbar(hotbar, desiredLeft, desiredTop) {
@@ -681,7 +927,6 @@ function render() {
   if (selectionActorUuid !== actor.uuid) {
     openSelection = null;
     preferencesOpen = false;
-    selectedCombatOptions = new Set();
     combatOptionsPanelOpen = false;
     combatOptionsPanelExpanded = false;
     combatOptionsManeuverKey = "";
@@ -693,10 +938,16 @@ function render() {
   const groupedItems = categorizedFavorites(actor);
   const specialDefenses = specialDefenseEntries(actor);
   const consumables = consumablesFor(actor);
-  const combatOptions = executionOptionsFor(actor);
-  const availableCombatOptionIds = new Set(combatOptions.filter(option => option.binding.sourceType === "modifier").map(option => option.binding.id));
-  for (const bindingId of [...selectedCombatOptions]) if (!availableCombatOptionIds.has(bindingId)) selectedCombatOptions.delete(bindingId);
-  const maneuverKey = [...activeManeuverUuids(actor)].sort().join("|");
+  const committedManeuver = committedManeuverSelection(actor);
+  const maneuverDraft = maneuverDraftFor(actor);
+  const maneuverBusy = Boolean(maneuverOperationActorUuid);
+  const contextualManeuverUuid = maneuverDraft ? maneuverDraft.maneuverUuid : committedManeuver.maneuverUuid;
+  const combatOptions = contextualManeuverUuid ? executionOptionsFor(actor, [contextualManeuverUuid]) : [];
+  const availableCombatOptionIds = new Set(combatOptions.map(option => option.binding.id));
+  if (maneuverDraft) for (const bindingId of [...maneuverDraft.optionBindingIds]) {
+    if (!availableCombatOptionIds.has(bindingId)) maneuverDraft.optionBindingIds.delete(bindingId);
+  }
+  const maneuverKey = contextualManeuverUuid || "";
   if (!combatOptions.length) {
     combatOptionsPanelOpen = false;
     combatOptionsPanelExpanded = false;
@@ -723,12 +974,13 @@ function render() {
   const activeEffects = activeEffectsFor(actor);
   const allManeuvers = group?.effectUuids || [];
   const activeIndex = allManeuvers.findIndex(uuid => active.has(uuid));
+  const preparedUuid = maneuverDraft?.maneuverUuid || null;
   const visibleIndices = allManeuvers.length <= 16 ? allManeuvers.map((_, index) => index) : allManeuvers.slice(0, VISIBLE_MANEUVERS).map((_, index) => index);
   if (activeIndex >= VISIBLE_MANEUVERS && !visibleIndices.includes(activeIndex)) visibleIndices[VISIBLE_MANEUVERS - 1] = activeIndex;
   const maneuverCard = index => {
     const uuid = allManeuvers[index], item = game.gumHud.maneuverItems.get(uuid);
     const label = item?.name || format("Maneuvers.FallbackName", { number: index + 1 }, `Manobra ${index + 1}`);
-    return `<button data-maneuver="${index}" data-preview-uuid="${escape(uuid)}" class="gum-hud-maneuver ${active.has(uuid) ? "active" : ""}" data-tooltip="${escape(label)}" aria-label="${escape(label)}"><img src="${escape(item?.img || "icons/svg/aura.svg")}" alt=""></button>`;
+    return `<button data-maneuver="${index}" data-preview-uuid="${escape(uuid)}" class="gum-hud-maneuver ${active.has(uuid) ? "active" : ""} ${preparedUuid === uuid ? "is-prepared" : ""}" aria-pressed="${preparedUuid === uuid}" ${maneuverBusy ? "disabled" : ""} data-tooltip="${escape(label)}" aria-label="${escape(label)}"><img src="${escape(item?.img || "icons/svg/aura.svg")}" alt=""></button>`;
   };
   const maneuvers = visibleIndices.map(maneuverCard).join("") + (allManeuvers.length > 16 ? `<button data-more-maneuvers class="gum-hud-maneuver gum-hud-more" title="${escape(localize("Maneuvers.All", "Todas as manobras"))}">+${allManeuvers.length - visibleIndices.length}</button>` : "");
   const extraManeuvers = allManeuvers.length > 16 ? allManeuvers.map((_, index) => index).filter(index => !visibleIndices.includes(index)).map(maneuverCard).join("") : "";
@@ -758,6 +1010,7 @@ function render() {
     : localize("Identity.FixedActor", "Personagem fixado no HUD");
   const bindingControl = `<span class="gum-hud-resource-divider" aria-hidden="true"></span><button type="button" class="gum-hud-binding-trigger ${followSelection ? "is-following" : "is-locked"}" data-toggle-hud-binding aria-pressed="${!followSelection}" title="${escape(bindingLabel)}"><i class="fas ${followSelection ? "fa-lock-open" : "fa-lock"}" aria-hidden="true"></i></button>`;
   const showFoundryHotbar = !game.settings.get(MODULE, "hideHotbar");
+  const maneuverTiming = maneuverTimingStatus(actor, tokenForHud);
   const hotbarLayouts = [
     ["equipment", "fa-table-cells", localize("Preferences.HotbarEquipment", "Acima dos equipamentos")],
     ["below", "fa-grip-lines", localize("Preferences.HotbarBelow", "Uma linha abaixo")],
@@ -765,7 +1018,7 @@ function render() {
   ].map(([value, icon, label]) => `<button type="button" class="${hotbarLayout === value ? "is-selected" : ""}" data-hotbar-layout="${value}" aria-pressed="${hotbarLayout === value}" title="${escape(label)}"><i class="fas ${icon}" aria-hidden="true"></i><span>${escape(label)}</span></button>`).join("");
   const preferences = `<button type="button" class="gum-hud-preferences-trigger ${preferencesOpen ? "is-active" : ""}" data-hud-preferences aria-expanded="${preferencesOpen}" title="${escape(localize("Preferences.Open", "Configurar HUD"))}"><i class="fas fa-cog" aria-hidden="true"></i></button><aside class="gum-hud-preferences-panel ${preferencesOpen ? "is-open" : ""}" aria-label="${escape(localize("Preferences.Title", "Preferências do HUD"))}"><header><i class="fas fa-cog" aria-hidden="true"></i><span>${localize("Preferences.Title", "Preferências do HUD")}</span></header><button type="button" class="gum-hud-preference-toggle ${showFoundryHotbar ? "is-enabled" : ""}" data-toggle-foundry-hotbar aria-pressed="${showFoundryHotbar}"><span><strong>${localize("Preferences.FoundryHotbar", "Hotbar do Foundry")}</strong><small>${localize("Preferences.FoundryHotbarHint", "Exibir com o GUM HUD")}</small></span><i aria-hidden="true"><b></b></i></button><div class="gum-hud-hotbar-layout ${showFoundryHotbar ? "" : "is-disabled"}"><small>${localize("Preferences.HotbarPosition", "Posição")}</small><div>${hotbarLayouts}</div></div></aside>`;
   const identityVitals = `${identityResource(hp, "HP")}${identityResource(fp, "FP")}${identityMovement(actor)}`;
-  root.innerHTML = `<div class="gum-hud-region gum-hud-identity-region gum-hud-summary"><div class="gum-hud-loadout" aria-label="${escape(localize("Identity.QuickEquipment", "Equipamentos rápidos"))}">${equipmentSlots}</div><img src="${escape(tokenForHud?.document.texture?.src || actor.img)}" alt=""><div class="gum-hud-summary-info"><strong>${escape(actor.name)}</strong><div class="gum-hud-vitals">${identityVitals}</div></div><button data-close title="${escape(localize("General.Close", "Fechar"))}">×</button></div><nav class="gum-hud-resource-rail" aria-label="${escape(localize("CharacterBrowser.Access", "Acesso rápido"))}">${resourceRail}${bindingControl}${preferences}</nav><div class="gum-hud-region gum-hud-maneuver-region ${regionIsExpanded("maneuvers") ? "is-expanded" : ""}">${maneuverChrome(localize("Maneuvers.Title", "MANOBRAS"), maneuverExpandable, combatOptions, actor)}<div class="gum-hud-maneuvers">${maneuvers || `<small>${localize("Maneuvers.SelectGroup", "Selecione um grupo nas configurações.")}</small>`}</div><div class="gum-hud-maneuver-palette" hidden>${extraManeuvers}</div>${combatOptionsPanelMarkup(actor, combatOptions)}</div><div class="gum-hud-region gum-hud-combat ${regionIsExpanded("combat") ? "is-expanded" : ""}">${regionChrome(localize("Combat.Title", "OPÇÕES DE COMBATE"), "combat", combatExpandable)}<div class="gum-hud-cards ${itemCards ? "" : "is-empty"}">${itemCards || `<small class="gum-hud-empty-state">${localize("Combat.Empty", "Arraste equipamentos para os slots ou marque outras opções como favoritas.")}</small>`}</div><div class="gum-hud-expanded"></div></div><div class="gum-hud-region gum-hud-defense-region">${regionChrome(localize("Defense.Title", "DEFESAS ATIVAS"), "defenses", false)}<div class="gum-hud-defenses"></div><div class="gum-hud-expanded"></div></div>${consumableRegion}`;
+  root.innerHTML = `<div class="gum-hud-region gum-hud-identity-region gum-hud-summary"><div class="gum-hud-loadout" aria-label="${escape(localize("Identity.QuickEquipment", "Equipamentos rápidos"))}">${equipmentSlots}</div><img src="${escape(tokenForHud?.document.texture?.src || actor.img)}" alt=""><div class="gum-hud-summary-info"><strong>${escape(actor.name)}</strong><div class="gum-hud-vitals">${identityVitals}</div></div><button data-close title="${escape(localize("General.Close", "Fechar"))}">×</button></div><nav class="gum-hud-resource-rail" aria-label="${escape(localize("CharacterBrowser.Access", "Acesso rápido"))}">${resourceRail}${bindingControl}${preferences}</nav><div class="gum-hud-region gum-hud-maneuver-region ${regionIsExpanded("maneuvers") ? "is-expanded" : ""}">${maneuverChrome(localize("Maneuvers.Title", "MANOBRAS"), maneuverExpandable, combatOptions, actor, { draft: maneuverDraft, committed: committedManeuver, timing: maneuverTiming, busy: maneuverBusy })}<div class="gum-hud-maneuvers">${maneuvers || `<small>${localize("Maneuvers.SelectGroup", "Selecione um grupo nas configurações.")}</small>`}</div><div class="gum-hud-maneuver-palette" hidden>${extraManeuvers}</div>${combatOptionsPanelMarkup(actor, combatOptions, maneuverDraft, committedManeuver, maneuverBusy)}</div><div class="gum-hud-region gum-hud-combat ${regionIsExpanded("combat") ? "is-expanded" : ""}">${regionChrome(localize("Combat.Title", "OPÇÕES DE COMBATE"), "combat", combatExpandable)}<div class="gum-hud-cards ${itemCards ? "" : "is-empty"}">${itemCards || `<small class="gum-hud-empty-state">${localize("Combat.Empty", "Arraste equipamentos para os slots ou marque outras opções como favoritas.")}</small>`}</div><div class="gum-hud-expanded"></div></div><div class="gum-hud-region gum-hud-defense-region">${regionChrome(localize("Defense.Title", "DEFESAS ATIVAS"), "defenses", false)}<div class="gum-hud-defenses"></div><div class="gum-hud-expanded"></div></div>${consumableRegion}`;
   if (openSelection?.kind === "defense" && !defenseEntries(actor, openSelection.key).length) openSelection = null;
   if (openSelection?.kind === "specialDefense" && !specialDefenses.length) openSelection = null;
   if (openSelection?.kind === "consumables" && !consumables.length) openSelection = null;
@@ -873,10 +1126,43 @@ function render() {
         if (optionsPanel) optionsPanel.classList.toggle("is-suspended", !palette.hidden);
         return;
       }
-      if (button.dataset.maneuver != null) {
+      if (button.hasAttribute("data-cancel-maneuver-draft")) {
+        discardManeuverDraft(actor);
+        render();
+        return;
+      }
+      if (button.hasAttribute("data-edit-maneuver")) {
+        const draft = beginManeuverDraft(actor);
+        combatOptionsPanelOpen = executionOptionsFor(actor, draft.maneuverUuid ? [draft.maneuverUuid] : []).length > 0;
+        render();
+        return;
+      }
+      if (button.hasAttribute("data-apply-maneuver")) {
         const target = effectTarget(actor, tokenForHud);
         if (!target) throw new Error(localize("Permissions.TokenContextLost", "O contexto deste token não está mais disponível."));
-        await api().effects.apply(group.effectUuids[Number(button.dataset.maneuver)], [target], { actor, origin: actor, source: "GUM HUD" }); render(); return;
+        await applyPreparedManeuver(actor, target, tokenForHud);
+        return;
+      }
+      if (button.hasAttribute("data-remove-maneuver")) {
+        await removeManeuverApplication(actor, tokenForHud);
+        return;
+      }
+      if (button.dataset.maneuver != null) {
+        const maneuverUuid = group.effectUuids[Number(button.dataset.maneuver)];
+        let draft = maneuverDraftFor(actor);
+        if (!draft) draft = beginManeuverDraft(actor, maneuverUuid);
+        else if (draft.maneuverUuid === maneuverUuid) {
+          draft.maneuverUuid = null;
+          draft.optionBindingIds.clear();
+        } else {
+          const stillAvailable = new Set(executionOptionsFor(actor, [maneuverUuid]).map(option => option.binding.id));
+          draft.maneuverUuid = maneuverUuid;
+          for (const bindingId of [...draft.optionBindingIds]) if (!stillAvailable.has(bindingId)) draft.optionBindingIds.delete(bindingId);
+        }
+        combatOptionsPanelOpen = Boolean(draft.maneuverUuid && executionOptionsFor(actor, [draft.maneuverUuid]).length);
+        combatOptionsPanelExpanded = false;
+        render();
+        return;
       }
       if (button.dataset.defense === "dodge") { closeSelectionForRoll(); await promptRoll(actor, withExecutionOptions(actor, { type: "defense", defenseType: "dodge", value: actor.system.attributes.dodge.final, defenseBonusIncluded: true, label: localize("Defense.Dodge", "Esquiva") })); return; }
       if (button.dataset.expandDefense) {
@@ -910,15 +1196,14 @@ function render() {
         return;
       }
       if (button.hasAttribute("data-config-execution")) {
-        const activeManeuver = [...activeManeuverUuids(actor)][0] || null;
-        new ExecutionOptionsConfig({ maneuverUuid: activeManeuver }).render(true);
+        const contextualManeuver = maneuverDraftFor(actor)?.maneuverUuid || activeManeuverUuid(actor);
+        new ExecutionOptionsConfig({ maneuverUuid: contextualManeuver }).render(true);
         return;
       }
       if (button.dataset.executionOption) {
-        const option = executionOptionsFor(actor).find(candidate => candidate.binding.id === button.dataset.executionOption);
-        const target = effectTarget(actor, tokenForHud);
-        if (!target) throw new Error(localize("Permissions.TokenContextLost", "O contexto deste token não está mais disponível."));
-        await toggleExecutionOption(actor, option, target);
+        const contextualManeuver = maneuverDraftFor(actor)?.maneuverUuid || activeManeuverUuid(actor);
+        const option = executionOptionsFor(actor, contextualManeuver ? [contextualManeuver] : []).find(candidate => candidate.binding.id === button.dataset.executionOption);
+        toggleExecutionOption(actor, option);
         render();
         return;
       }
@@ -978,6 +1263,21 @@ function render() {
 
 Hooks.once("init", () => {
   game.settings.register(MODULE, "maneuverGroup", { name: "GUMHUD.Settings.ManeuverGroup.Name", hint: "GUMHUD.Settings.ManeuverGroup.Hint", scope: "world", config: true, type: String, default: "", onChange: async () => { await migrateLegacyCombatOptions(); if (hudIsOpen()) refreshManeuverNames(); } });
+  game.settings.register(MODULE, MANEUVER_TIMING_SETTING, {
+    name: "GUMHUD.Settings.ManeuverTiming.Name",
+    hint: "GUMHUD.Settings.ManeuverTiming.Hint",
+    scope: "world",
+    config: true,
+    restricted: true,
+    type: String,
+    choices: {
+      [MANEUVER_TIMING_POLICIES.ALWAYS]: "GUMHUD.Settings.ManeuverTiming.Always",
+      [MANEUVER_TIMING_POLICIES.COMBAT]: "GUMHUD.Settings.ManeuverTiming.Combat",
+      [MANEUVER_TIMING_POLICIES.TURN]: "GUMHUD.Settings.ManeuverTiming.Turn"
+    },
+    default: MANEUVER_TIMING_POLICIES.ALWAYS,
+    onChange: render
+  });
   game.settings.register(MODULE, "hideHotbar", { name: "GUMHUD.Settings.HideHotbar.Name", hint: "GUMHUD.Settings.HideHotbar.Hint", scope: "client", config: true, type: Boolean, default: true, onChange: render });
   game.settings.register(MODULE, "hotbarLayout", { name: "GUMHUD.Settings.HotbarLayout.Name", hint: "GUMHUD.Settings.HotbarLayout.Hint", scope: "client", config: true, type: String, choices: { equipment: "GUMHUD.Preferences.HotbarEquipment", below: "GUMHUD.Preferences.HotbarBelow", native: "GUMHUD.Preferences.HotbarNative" }, default: "equipment", onChange: render });
   game.settings.register(MODULE, "followTokenSelection", { name: "GUMHUD.Settings.FollowTokenSelection.Name", hint: "GUMHUD.Settings.FollowTokenSelection.Hint", scope: "client", config: false, type: Boolean, default: true });
@@ -1090,18 +1390,20 @@ Hooks.once("ready", async () => {
     else await game.settings.set(MODULE, "hudActorUuid", "");
   }
 });
-Hooks.on("gum.rollCompleted", context => {
+Hooks.on("gum.rollCompleted", async context => {
   const usedIds = Array.isArray(context?.metadata?.rollData?.gumHudExecutionBindingIds)
     ? context.metadata.rollData.gumHudExecutionBindingIds
     : [];
-  if (!usedIds.length || !context?.actor || context.actor.uuid !== currentActor()?.uuid) return;
-  let changed = false;
+  if (!usedIds.length || !context?.actor) return;
+  const application = maneuverApplicationFor(context.actor);
+  if (!application) return;
   const registry = getExecutionRegistry();
-  for (const bindingId of [...selectedCombatOptions]) {
+  const remaining = application.optionBindingIds.filter(bindingId => {
     const binding = registry.bindings.find(entry => entry.id === bindingId);
-    if (binding && usedIds.includes(binding.id) && binding.reset !== "sticky" && selectedCombatOptions.delete(bindingId)) changed = true;
-  }
-  if (changed) render();
+    return !binding || !usedIds.includes(binding.id) || binding.reset === "sticky";
+  });
+  if (remaining.length === application.optionBindingIds.length) return;
+  await context.actor.setFlag(MODULE, MANEUVER_APPLICATION_FLAG, { ...application, optionBindingIds: remaining });
 });
 Hooks.on("updateActor", actor => {
   const relevant = actor?.uuid === currentActor()?.uuid;
@@ -1115,6 +1417,7 @@ for (const hook of ["createActiveEffect", "deleteActiveEffect", "updateActiveEff
   const actorUuid = effect?.parent?.uuid;
   if (hudIsOpen() && actorUuid === currentActor()?.uuid) render();
   if (actorUuid === characterBrowser?.actorUuid) characterBrowser.render(false);
+  if (actorUuid) queueMicrotask(() => { void reconcileManeuverApplication(effect.parent); });
 });
 Hooks.on("controlToken", () => {
   if (!hudIsOpen() || !game.settings.get(MODULE, "followTokenSelection")) return;
@@ -1130,6 +1433,9 @@ Hooks.on("canvasReady", () => {
   if (characterBrowser) characterBrowser.render(false);
 });
 Hooks.on("canvasTearDown", () => { if (hudIsOpen()) render(); });
+for (const hook of ["updateCombat", "createCombatant", "updateCombatant", "deleteCombatant", "combatStart", "combatEnd"]) {
+  Hooks.on(hook, () => { if (hudIsOpen()) render(); });
+}
 Hooks.on("renderHotbar", () => { const root = document.getElementById("gum-hud-bar"); if (root) requestAnimationFrame(() => fitToFoundry(root)); });
 for (const hook of ["createItem", "updateItem", "deleteItem"]) Hooks.on(hook, item => {
   if (!hudIsOpen()) return;

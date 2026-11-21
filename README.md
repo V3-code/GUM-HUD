@@ -4,7 +4,7 @@
 
 ### HUD de combate compacto e contextual para o sistema GUM
 
-![Versão](https://img.shields.io/badge/versão-0.1.0-8a7d5f)
+![Versão](https://img.shields.io/badge/versão-0.2.0-8a7d5f)
 ![Foundry VTT](https://img.shields.io/badge/Foundry_VTT-13–14-8a7d5f)
 ![GUM](https://img.shields.io/badge/GUM-1.6.3--beta%2B-4f6b58)
 ![Idiomas](https://img.shields.io/badge/idiomas-PT--BR_%7C_EN-596878)
@@ -26,6 +26,7 @@ O módulo requer **GUM 1.6.3-beta ou superior**.
 ## Recursos
 
 - Manobras configuradas pelo mundo e opções de execução vinculadas a Modificadores do Mestre ou Itens Efeito.
+- Preparação de manobras e opções secundárias com confirmação explícita, alteração e remoção precisa da aplicação do HUD.
 - Modos de ataque, dano, defesas ativas, defesas especiais e consumíveis em painéis contextuais compactos.
 - Seis atalhos de equipamentos com ativação individual, sem precisar remover a configuração do personagem.
 - Acesso rápido e somente leitura a Perícias, Magias, Poderes, Equipamentos e Efeitos ativos.
@@ -43,6 +44,9 @@ O módulo requer **GUM 1.6.3-beta ou superior**.
 - Use o cadeado aberto para acompanhar a seleção de tokens; feche-o para manter o personagem atual.
 - Clique com o botão direito em um Item do HUD para abrir sua visualização rápida.
 - Arraste equipamentos da ficha para os seis espaços acima do retrato.
+- Selecione uma manobra e suas opções de execução e clique em **Aplicar** para confirmar o conjunto. Use **Alterar** para preparar mudanças ou **Remover** para desfazer a aplicação do HUD.
+
+O mestre pode definir nas configurações do módulo se jogadores aplicam manobras sempre, somente durante combate ou somente no turno do próprio personagem. A preparação continua disponível fora do momento permitido; apenas a confirmação e a remoção ficam bloqueadas.
 
 Tokens não vinculados permanecem disponíveis somente enquanto seu token e sua cena continuarem válidos. Atores mundiais e tokens vinculados podem manter o HUD aberto entre cenas e após recarregar o cliente.
 
@@ -54,7 +58,7 @@ O HUD só pode ser criado para atores que o usuário possui. Ele utiliza as APIs
 
 | Informação | Estado atual |
 | --- | --- |
-| Versão do módulo | 0.1.0 |
+| Versão do módulo | 0.2.0 |
 | GUM mínimo | 1.6.3-beta |
 | Foundry VTT mínimo | 13 |
 | Foundry VTT verificado | 14 |

@@ -131,9 +131,25 @@ body.gum-hud-compact-hotbar #hotbar #hotbar-page-controls .hotbar-page-number { 
 #gum-hud-bar .gum-hud-region-toggle { display: flex; align-items: center; justify-content: center; width: 100%; min-height: 21px; padding: 3px 8px; border: 0; border-radius: 0; background: transparent; color: inherit; font: inherit; letter-spacing: inherit; }
 #gum-hud-bar .gum-hud-region-toggle:hover, #gum-hud-bar .gum-hud-region-toggle:focus-visible { background: rgba(var(--region-rgb), .08); color: rgb(var(--region-title-rgb)); outline: none; }
 .gum-hud-region-toggle i { margin-left: 8px; color: rgba(var(--region-title-rgb), .76); font-size: 10px; line-height: 10px; }
+.gum-hud-maneuver-footer { flex-direction: column; }
 .gum-hud-maneuver-footer > div { display: flex; align-items: stretch; width: 100%; min-width: 0; }
-.gum-hud-maneuver-footer > div > span { display: flex; flex: 1 1 auto; align-items: center; justify-content: center; padding: 4px 7px 3px; }
+.gum-hud-maneuver-controls > span:not(.gum-hud-maneuver-status) { display: flex; flex: 1 1 auto; align-items: center; justify-content: center; padding: 4px 7px 3px; }
 #gum-hud-bar .gum-hud-maneuver-footer .gum-hud-region-toggle { flex: 1 1 auto; width: auto; }
+.gum-hud-maneuver-status { display: flex; flex: 0 0 22px; align-items: center; justify-content: center; min-width: 22px; padding: 0; border-left: 1px solid rgba(var(--region-rgb), .18); color: #8f897f; font-size: 8px; }
+.gum-hud-maneuver-status.is-draft { color: #e0b76f; background: rgba(164, 121, 71, .08); }
+.gum-hud-maneuver-status.is-applied { color: #91a889; }
+#gum-hud-bar .gum-hud-maneuver-actions { border-bottom: 1px solid rgba(var(--region-rgb), .2); background: rgba(10, 11, 14, .38); }
+#gum-hud-bar .gum-hud-maneuver-actions button { display: flex; align-items: center; justify-content: center; min-height: 25px; gap: 5px; padding: 4px 7px; border: 0; border-radius: 0; background: transparent; color: #aaa195; font-size: 8px; font-weight: 700; }
+#gum-hud-bar .gum-hud-maneuver-actions.is-draft button:first-child { flex: 0 1 36%; }
+#gum-hud-bar .gum-hud-maneuver-actions.is-draft button:last-child { flex: 1 1 64%; }
+#gum-hud-bar .gum-hud-maneuver-actions.is-applied button { flex: 1 1 50%; }
+#gum-hud-bar .gum-hud-maneuver-actions button + button { border-left: 1px solid rgba(var(--region-rgb), .18); }
+#gum-hud-bar .gum-hud-maneuver-actions button:hover:not(:disabled), #gum-hud-bar .gum-hud-maneuver-actions button:focus-visible:not(:disabled) { background: rgba(var(--region-rgb), .1); color: #eee4d2; outline: none; }
+#gum-hud-bar .gum-hud-maneuver-actions button.is-primary { background: #8f6738; color: #fff1d5; box-shadow: inset 0 1px 0 rgba(255, 255, 255, .12); }
+#gum-hud-bar .gum-hud-maneuver-actions button.is-primary:hover:not(:disabled), #gum-hud-bar .gum-hud-maneuver-actions button.is-primary:focus-visible:not(:disabled) { background: #a77942; color: #fff7e8; }
+#gum-hud-bar .gum-hud-maneuver-actions button.is-primary:disabled { background: rgba(143, 103, 56, .42); color: #c7b89e; }
+#gum-hud-bar .gum-hud-maneuver-actions button.is-danger { color: #c89d91; }
+#gum-hud-bar .gum-hud-maneuver-actions button:disabled { opacity: .38; cursor: not-allowed; box-shadow: none; }
 #gum-hud-bar .gum-hud-combat-options-toggle { display: flex; flex: 0 0 auto; align-items: center; gap: 4px; min-height: 21px; padding: 3px 7px; border: 0; border-left: 1px solid rgba(var(--region-rgb), .24); border-radius: 0; background: transparent; color: rgba(var(--region-title-rgb), .82); }
 #gum-hud-bar .gum-hud-combat-options-toggle:hover, #gum-hud-bar .gum-hud-combat-options-toggle:focus-visible, #gum-hud-bar .gum-hud-combat-options-toggle.is-selected { border-color: rgba(var(--region-rgb), .5); background: rgba(var(--region-rgb), .12); color: rgb(var(--region-title-rgb)); outline: none; box-shadow: none; }
 .gum-hud-execution-config-button { flex: 0 0 auto; }
@@ -150,8 +166,12 @@ body.gum-hud-compact-hotbar #hotbar #hotbar-page-controls .hotbar-page-number { 
 .gum-hud-combat-options-panel { position: absolute; z-index: 4; right: 0; bottom: calc(100% + 7px); left: 0; display: none; width: auto; padding: 5px; border: 1px solid rgba(var(--region-rgb), .72); border-radius: 5px; background: #17191ff7; box-shadow: 0 5px 18px #0008; }
 .gum-hud-combat-options-panel.is-open { display: block; }
 .gum-hud-combat-options-panel.is-suspended { display: none; }
-.gum-hud-combat-options-heading { display: flex; align-items: center; gap: 5px; height: 20px; padding: 0 3px 4px; color: rgb(var(--region-title-rgb)); font-size: 9px; font-weight: 700; letter-spacing: .055em; text-transform: uppercase; }
+.gum-hud-combat-options-heading { display: flex; align-items: center; gap: 6px; min-height: 28px; padding: 0 3px 5px; color: rgb(var(--region-title-rgb)); font-size: 9px; font-weight: 700; letter-spacing: .055em; text-transform: uppercase; }
 .gum-hud-combat-options-heading i { color: rgba(var(--region-title-rgb), .78); }
+.gum-hud-combat-options-heading > span { display: flex; flex: 1 1 auto; flex-direction: column; min-width: 0; gap: 1px; }
+.gum-hud-combat-options-heading strong { overflow: hidden; font-size: 8px; text-overflow: ellipsis; white-space: nowrap; }
+.gum-hud-combat-options-heading small { overflow: hidden; color: #938979; font-size: 7px; font-weight: 550; letter-spacing: .02em; text-overflow: ellipsis; text-transform: none; white-space: nowrap; }
+.gum-hud-combat-options-heading > b { flex: 0 0 auto; color: #c9a66e; font-size: 8px; }
 .gum-hud-combat-option-groups { display: flex; flex-direction: column; gap: 5px; }
 .gum-hud-combat-options-panel.is-expanded .gum-hud-combat-option-groups { max-height: min(50vh, 284px); overflow-y: auto; }
 .gum-hud-combat-option-group { display: flex; flex-direction: column; gap: 3px; }
@@ -161,6 +181,7 @@ body.gum-hud-compact-hotbar #hotbar #hotbar-page-controls .hotbar-page-number { 
 .gum-hud-combat-option-group-label small { color: rgba(238, 228, 210, .48); font-size: 7px; letter-spacing: .035em; white-space: nowrap; }
 .gum-hud-combat-option-group.is-cumulative .gum-hud-combat-option-group-label::after { border-top-style: dashed; }
 .gum-hud-combat-options-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: 46px; gap: 4px; }
+.gum-hud-combat-options-grid > :only-child { grid-column: 1 / -1; }
 .gum-hud-combat-options-panel:not(.is-expanded) .is-overflow { display: none; }
 #gum-hud-bar .gum-hud-combat-option-mini { display: flex; flex-direction: column; align-items: stretch; justify-content: center; width: 100%; height: 46px; gap: 2px; padding: 3px 4px; text-align: left; }
 .gum-hud-combat-option-mini > span { display: flex; align-items: center; min-width: 0; height: 18px; gap: 5px; }
@@ -317,6 +338,11 @@ body.gum-hud-compact-hotbar #hotbar #hotbar-page-controls .hotbar-page-number { 
 .gum-hud-maneuvers, .gum-hud-cards, .gum-hud-defenses { gap: 4px; }
 #gum-hud-bar .gum-hud-maneuver { border-color: var(--hud-line); border-radius: 2px; background: #202329; }
 #gum-hud-bar .gum-hud-maneuver.active { border-color: var(--hud-accent); box-shadow: inset 0 -2px 0 var(--hud-accent-bright); }
+#gum-hud-bar .gum-hud-maneuver.active::before { content: "✓"; position: absolute; right: 2px; bottom: 2px; z-index: 1; display: grid; place-items: center; width: 12px; height: 12px; border: 1px solid #6f7f68; border-radius: 50%; background: #182019e8; color: #bad0b2; font-size: 8px; line-height: 1; }
+#gum-hud-bar .gum-hud-maneuver.is-prepared { border-color: #d1aa6a; background: #2b2926; box-shadow: inset 0 0 0 1px rgba(233, 199, 142, .22); }
+#gum-hud-bar .gum-hud-maneuver.is-prepared::after { content: ""; position: absolute; top: 3px; right: 3px; z-index: 1; width: 7px; height: 7px; border: 1px solid #e1bd7b; border-radius: 50%; background: #9d6f35; box-shadow: 0 0 0 2px #17191fcc; }
+#gum-hud-bar .gum-hud-maneuver.active.is-prepared { box-shadow: inset 0 -2px 0 var(--hud-accent-bright), inset 0 0 0 1px rgba(233, 199, 142, .22); }
+#gum-hud-bar .gum-hud-maneuver:focus-visible { outline: 1px dashed #f2dfbd; outline-offset: 2px; }
 #gum-hud-bar .gum-hud-card,
 #gum-hud-bar .gum-hud-defenses .gum-hud-defense { border-color: var(--hud-line); border-radius: 3px; background: var(--hud-surface); }
 .gum-hud-card img { border-radius: 2px; }
@@ -334,8 +360,9 @@ body.gum-hud-compact-hotbar #hotbar #hotbar-page-controls .hotbar-page-number { 
   box-shadow: 0 8px 18px #0008, inset 0 1px 0 rgba(255, 255, 255, .025);
 }
 .gum-hud-combat-options-heading {
-  height: 18px;
-  gap: 5px;
+  height: auto;
+  min-height: 28px;
+  gap: 6px;
   padding: 0 2px 5px;
   border-bottom: 1px solid var(--hud-line);
   color: #d8c6aa;

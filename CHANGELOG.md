@@ -4,6 +4,20 @@ Todas as mudanças relevantes do GUM HUD serão documentadas neste arquivo.
 
 O formato segue uma adaptação de [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e usa [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.2.0] - 2026-11-21
+
+### Added
+
+- Preparação de manobras e opções de execução antes de uma confirmação explícita pelo botão Aplicar.
+- Controles para cancelar a preparação, alterar a aplicação atual e remover somente os efeitos criados pela aplicação do HUD.
+- Política mundial para permitir manobras sempre, somente durante combate ou somente no turno do personagem, com isenção para mestres.
+
+### Changed
+
+- Modificadores de execução confirmados agora persistem no ator e continuam respeitando a limpeza após a rolagem.
+- Aplicações simultâneas são bloqueadas enquanto o HUD processa a operação, reduzindo alterações redundantes de efeitos.
+- Ações de manobra agora ficam acima do título da região, com botão Aplicar destacado, indicadores compactos de estado e painel de opções contextualizado pela manobra preparada.
+
 ## [0.1.0] - 2026-11-16
 
 ### Added
